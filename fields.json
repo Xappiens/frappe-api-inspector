@@ -1,0 +1,212 @@
+[
+  {
+    "name": "details",
+    "label": "Details",
+    "type": "Tab Break"
+  },
+  {
+    "name": "organization",
+    "label": "Organization",
+    "type": "Data"
+  },
+  {
+    "name": "website",
+    "label": "Website",
+    "type": "Data"
+  },
+  {
+    "name": "territory",
+    "label": "Territory",
+    "type": "Link"
+  },
+  {
+    "name": "industry",
+    "label": "Industry",
+    "type": "Link"
+  },
+  {
+    "name": "job_title",
+    "label": "Job Title",
+    "type": "Data"
+  },
+  {
+    "name": "source",
+    "label": "Source",
+    "type": "Link"
+  },
+  {
+    "name": "lead_owner",
+    "label": "Lead Owner",
+    "type": "Link"
+  },
+  {
+    "name": "person_tab",
+    "label": "Person",
+    "type": "Tab Break"
+  },
+  {
+    "name": "salutation",
+    "label": "Salutation",
+    "type": "Link"
+  },
+  {
+    "name": "first_name",
+    "label": "First Name",
+    "type": "Data"
+  },
+  {
+    "name": "last_name",
+    "label": "Last Name",
+    "type": "Data"
+  },
+  {
+    "name": "email",
+    "label": "Email",
+    "type": "Data"
+  },
+  {
+    "name": "mobile_no",
+    "label": "Mobile No",
+    "type": "Data"
+  },
+  {
+    "name": "organization_tab",
+    "label": "Others",
+    "type": "Tab Break"
+  },
+  {
+    "name": "section_break_uixv",
+    "label": null,
+    "type": "Section Break"
+  },
+  {
+    "name": "naming_series",
+    "label": "Series",
+    "type": "Select"
+  },
+  {
+    "name": "lead_name",
+    "label": "Full Name",
+    "type": "Data"
+  },
+  {
+    "name": "middle_name",
+    "label": "Middle Name",
+    "type": "Data"
+  },
+  {
+    "name": "gender",
+    "label": "Gender",
+    "type": "Link"
+  },
+  {
+    "name": "phone",
+    "label": "Phone",
+    "type": "Data"
+  },
+  {
+    "name": "hard_to_reach",
+    "label": "Difícil de Contactar",
+    "type": "Check"
+  },
+  {
+    "name": "column_break_dbsv",
+    "label": null,
+    "type": "Column Break"
+  },
+  {
+    "name": "status",
+    "label": "Status",
+    "type": "Link"
+  },
+  {
+    "name": "no_of_employees",
+    "label": "No. of Employees",
+    "type": "Select"
+  },
+  {
+    "name": "annual_revenue",
+    "label": "Annual Revenue",
+    "type": "Currency"
+  },
+  {
+    "name": "image",
+    "label": "Image",
+    "type": "Attach Image"
+  },
+  {
+    "name": "converted",
+    "label": "Converted",
+    "type": "Check"
+  },
+  {
+    "name": "sla_tab",
+    "label": "SLA",
+    "type": "Tab Break"
+  },
+  {
+    "name": "sla",
+    "label": "SLA",
+    "type": "Link"
+  },
+  {
+    "name": "sla_creation",
+    "label": "SLA Creation",
+    "type": "Datetime"
+  },
+  {
+    "name": "column_break_ffnp",
+    "label": null,
+    "type": "Column Break"
+  },
+  {
+    "name": "sla_status",
+    "label": "SLA Status",
+    "type": "Select"
+  },
+  {
+    "name": "communication_status",
+    "label": "Communication Status",
+    "type": "Link"
+  },
+  {
+    "name": "response_details_section",
+    "label": "Response Details",
+    "type": "Section Break"
+  },
+  {
+    "name": "response_by",
+    "label": "Response By",
+    "type": "Datetime"
+  },
+  {
+    "name": "column_break_pweh",
+    "label": null,
+    "type": "Column Break"
+  },
+  {
+    "name": "first_response_time",
+    "label": "First Response Time",
+    "type": "Duration"
+  },
+  {
+    "name": "first_responded_on",
+    "label": "First Responded On",
+    "type": "Datetime"
+  },
+  {
+    "name": "last_email_date",
+    "label": "Last Email Date",
+    "type": "Datetime"
+  },
+  {
+    "name": "log_tab",
+    "label": "Log",
+    "type": "Tab Break"
+  },
+  {
+    "name": "status_change_log",
+    "label": "Status Change Log",
+    "type": "Table"
+  }
+]

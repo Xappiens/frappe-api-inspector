@@ -1,0 +1,24 @@
+{
+  "name": "frappe-doctype-inspector",
+  "version": "1.0.0",
+  "description": "Una potente Single Page Application para inspeccionar DocTypes de Frappe/ERPNext, generar Payloads y realizar Tests Automatizados, incluyendo un escáner de permisos en profundidad.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "frappe",
+    "erpnext",
+    "inspector",
+    "api",
+    "webhook"
+  ],
+  "author": "Javier Rodriguez Fernandez",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  }
+}

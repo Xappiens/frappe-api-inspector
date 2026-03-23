@@ -1,0 +1,437 @@
+/* ═══════════════════════════════════════════════════════
+   Frappe DocType Inspector — Custom Styles
+   VS Code / Catppuccin-inspired dark theme
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Base ──────────────────────────────────────────── */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+::selection {
+    background-color: rgba(137, 180, 250, 0.25);
+    color: #cdd6f4;
+}
+
+/* ── Explicit Dark Backgrounds (fallback for Tailwind CDN) ── */
+html, body {
+    background-color: #1e1e2e !important;
+    color: #cdd6f4 !important;
+}
+
+#sidebar {
+    background-color: #181825 !important;
+}
+
+#main-header,
+thead tr {
+    background-color: #242438 !important;
+}
+
+#modal-content {
+    background-color: #181825 !important;
+}
+
+#modal-backdrop {
+    background-color: rgba(17, 17, 27, 0.8) !important;
+}
+
+.border-editor-border,
+#sidebar,
+#main-header,
+#connection-panel,
+#doctype-search-panel,
+.border-b {
+    border-color: #333350;
+}
+
+/* ── Scrollbar ─────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(51, 51, 80, 0.6);
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(51, 51, 80, 1);
+}
+
+/* ── Input Fields ──────────────────────────────────── */
+.input-field {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid #333350;
+    background: #242438;
+    color: #cdd6f4;
+    font-size: 12px;
+    font-family: 'Inter', system-ui, sans-serif;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.input-field::placeholder {
+    color: #6c7086;
+    font-weight: 400;
+}
+
+.input-field:focus {
+    border-color: rgba(137, 180, 250, 0.5);
+    box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.08),
+                inset 0 0 0 1px rgba(137, 180, 250, 0.1);
+}
+
+.input-field:hover:not(:focus) {
+    border-color: #45456a;
+}
+
+/* ── DocType List Items ────────────────────────────── */
+.doctype-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px 6px 20px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #a6adc8;
+    transition: all 0.15s ease;
+    border-left: 2px solid transparent;
+    user-select: none;
+}
+
+.doctype-item:hover {
+    background: rgba(137, 180, 250, 0.05);
+    color: #cdd6f4;
+}
+
+.doctype-item.active {
+    background: rgba(137, 180, 250, 0.08);
+    color: #89b4fa;
+    border-left-color: #89b4fa;
+    font-weight: 500;
+}
+
+.doctype-item .doctype-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.4;
+    flex-shrink: 0;
+    transition: opacity 0.15s ease;
+}
+
+.doctype-item:hover .doctype-icon,
+.doctype-item.active .doctype-icon {
+    opacity: 0.8;
+}
+
+/* ── Table Rows ────────────────────────────────────── */
+.field-row {
+    border-bottom: 1px solid rgba(51, 51, 80, 0.3);
+    transition: background 0.15s ease;
+}
+
+.field-row:hover {
+    background: rgba(137, 180, 250, 0.03);
+}
+
+.field-row td {
+    padding: 8px 16px;
+    vertical-align: middle;
+}
+
+.field-row.section-break {
+    background: rgba(42, 42, 62, 0.5);
+}
+
+.field-row.section-break td {
+    padding: 5px 16px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6c7086;
+    font-weight: 600;
+}
+
+.field-row.column-break {
+    background: transparent;
+}
+
+.field-row.column-break td {
+    padding: 2px 16px;
+    font-size: 9px;
+    color: rgba(108, 112, 134, 0.5);
+}
+
+/* ── Fieldtype Badges ──────────────────────────────── */
+.fieldtype-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.badge-data       { background: rgba(137,180,250,0.12); color: #89b4fa; }
+.badge-link       { background: rgba(203,166,247,0.12); color: #cba6f7; }
+.badge-select     { background: rgba(249,226,175,0.12); color: #f9e2af; }
+.badge-int,
+.badge-float,
+.badge-currency   { background: rgba(166,227,161,0.12); color: #a6e3a1; }
+.badge-check      { background: rgba(148,226,213,0.12); color: #94e2d5; }
+.badge-date,
+.badge-datetime,
+.badge-time       { background: rgba(250,179,135,0.12); color: #fab387; }
+.badge-table      { background: rgba(245,194,231,0.12); color: #f5c2e7; }
+.badge-text,
+.badge-smalltext,
+.badge-longtext,
+.badge-texteditor,
+.badge-markdowneditor,
+.badge-htmleditor,
+.badge-code        { background: rgba(116,199,236,0.12); color: #74c7ec; }
+.badge-attach,
+.badge-attachimage { background: rgba(243,139,168,0.12); color: #f38ba8; }
+.badge-section,
+.badge-column,
+.badge-tab         { background: rgba(108,112,134,0.12); color: #6c7086; }
+.badge-default     { background: rgba(166,173,200,0.08); color: #a6adc8; }
+
+/* ── Required Icon ─────────────────────────────────── */
+.required-yes {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: rgba(166, 227, 161, 0.12);
+    color: #a6e3a1;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.required-no {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    color: rgba(108, 112, 134, 0.4);
+    font-size: 10px;
+}
+
+/* ── Fieldname copy hover ──────────────────────────── */
+.fieldname-cell {
+    cursor: pointer;
+    position: relative;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #89b4fa;
+    transition: color 0.15s ease;
+}
+
+.fieldname-cell:hover {
+    color: #b4d0fb;
+}
+
+.fieldname-cell::after {
+    content: 'Copiado!';
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #a6e3a1;
+    color: #1e1e2e;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.fieldname-cell.copied::after {
+    opacity: 1;
+}
+
+/* ── Loading Spinner ───────────────────────────────── */
+.loader {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(51, 51, 80, 0.5);
+    border-top-color: #89b4fa;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Toast ─────────────────────────────────────────── */
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid;
+    backdrop-filter: blur(12px);
+    animation: slideUp 0.3s ease-out, fadeOut 0.3s ease-out 2.5s forwards;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    max-width: 360px;
+}
+
+.toast-success {
+    background: rgba(166, 227, 161, 0.1);
+    border-color: rgba(166, 227, 161, 0.2);
+    color: #a6e3a1;
+}
+
+.toast-error {
+    background: rgba(243, 139, 168, 0.1);
+    border-color: rgba(243, 139, 168, 0.2);
+    color: #f38ba8;
+}
+
+.toast-info {
+    background: rgba(137, 180, 250, 0.1);
+    border-color: rgba(137, 180, 250, 0.2);
+    color: #89b4fa;
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; transform: translateY(8px); }
+}
+
+/* ── JSON Syntax Highlight ─────────────────────────── */
+.json-key { color: #89b4fa; }
+.json-string { color: #a6e3a1; }
+.json-number { color: #fab387; }
+.json-boolean { color: #cba6f7; }
+.json-null { color: #6c7086; }
+.json-bracket { color: #a6adc8; }
+
+/* ── Options column ────────────────────────────────── */
+.options-cell {
+    font-size: 11px;
+    color: #6c7086;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.options-cell .options-link {
+    color: #cba6f7;
+    font-weight: 500;
+}
+
+/* ── Create Document Modal ────────────────────────── */
+.create-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(36, 36, 56, 0.5);
+    border: 1px solid rgba(51, 51, 80, 0.3);
+    transition: border-color 0.2s ease;
+}
+
+.create-field-row:focus-within {
+    border-color: rgba(137, 180, 250, 0.3);
+}
+
+.create-field-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #cdd6f4;
+}
+
+.create-field-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.create-field-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #6c7086;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(51, 51, 80, 0.4);
+}
+
+.create-input {
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+    border-radius: 6px !important;
+    background: #1e1e2e !important;
+    border-color: rgba(51, 51, 80, 0.5) !important;
+}
+
+.create-input:focus {
+    border-color: rgba(137, 180, 250, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.08) !important;
+}
+
+.create-input-error {
+    border-color: rgba(243, 139, 168, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(243, 139, 168, 0.1) !important;
+}
+
+.create-checkbox-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.create-checkbox {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    accent-color: #89b4fa;
+    cursor: pointer;
+}
+
+select.create-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236c7086' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 8px center !important;
+    padding-right: 28px !important;
+}
+
+textarea.create-input {
+    resize: vertical;
+    min-height: 38px;
+}
