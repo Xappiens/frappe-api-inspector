@@ -1,7 +1,7 @@
 {
   "name": "frappe-doctype-inspector",
   "version": "1.0.0",
-  "description": "Una potente Single Page Application para inspeccionar DocTypes de Frappe/ERPNext, generar Payloads y realizar Tests Automatizados, incluyendo un escáner de permisos en profundidad.",
+  "description": "A powerful Single Page Application to inspect Frappe/ERPNext DocTypes, generate Payloads and run Automated Tests, including an in-depth bulk permission scanner.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

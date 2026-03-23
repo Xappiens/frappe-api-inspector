@@ -5,61 +5,61 @@
 ![Frappe](https://img.shields.io/badge/Frappe-ERPNext-orange)
 ![Author](https://img.shields.io/badge/Author-Javier_Rodriguez_Fernandez-blueviolet)
 
-Una potente e inteligente **Single Page Application (SPA)** diseñada para interactuar con la REST API de servidores Frappe/ERPNext. Facilita enormemente el trabajo de los desarrolladores y consultores permitiendo inspeccionar la estructura de los `DocTypes`, generar payloads JSON para integraciones, lanzar tests automatizados y capturar Webhooks.
+A powerful and intelligent **Single Page Application (SPA)** designed to interact with Frappe/ERPNext REST APIs. It greatly simplifies the workflow for developers and consultants by allowing them to inspect `DocType` structures, generate JSON payloads for integrations, run automated API tests, and capture Webhooks locally.
 
-## 🌟 Características Principales
+## 🌟 Key Features
 
-1. **Escáner Inteligente de Permisos**: Aunque tu servidor tenga la API bloqueada, la aplicación utiliza un escáner por fuerza bruta basado en los menús (*Workspaces*) y un diccionario estándar de ERPNext para extraer únicamente los DocTypes a los que tienes acceso real (lectura), 100% automático y "Admin-Free".
-2. **Inspección Profunda de Schemas**: Explora los campos obligatorios, ocultos, opciones (Selects/Links) de cualquier documento base o personalizado sin depender del navegador oficial.
-3. **Comparador (Schema Diff)**: Guarda "Snapshots" (Fotografías) de la estructura actual de un DocType. Modifica tu servidor (o cambia de entorno) y descubre visualmente qué campos se han añadido o modificado con la herramienta Diffing integrada.
-4. **API Test Runner Automatizado**: Construye tu propia suite de test manuales (GET, POST, PUT, DELETE) contra la API de Frappe, verifica resultados en un solo clic y asegúrate de que tus campos obligatorios funcionan.
-5. **Generador de Payloads JSON**: Botón instantáneo para copiar la estructura de datos obligatoria exacta, lista para ser pegada en aplicaciones como Postman o Bruno, o en tu backend.
-6. **Detector Local de Webhooks**: La aplicación incluye en su Proxy interno un escáner `localhost:3000/api/webhook-listener`. Puedes configurar tu Frappe para que escupa los eventos hacia este emulador y poder debugear payloads en tiempo real mediante la interfaz de la pestaña Webhooks.
-7. **Modo Claro / Oscuro**: Para hacer el desarrollo amigable con la vista 🌛 / 🌞.
-8. **Búsqueda Global (Ctrl+K / Cmd+K)**: Accede instantáneamente a cualquier DocType cacheado desde un modal al estilo VS Code.
+1. **Smart Permission Scanner**: Even if your server blocks direct API Schema queries for regular users, the application utilizes a brute-force scanner based on UI Workspaces and a comprehensive ERPNext dictionary to precisely extract only the DocTypes you have explicit read permissions for—100% automatic and "Admin-Free".
+2. **Deep Schema Inspection**: Explore mandatory fields, hidden properties, and Select/Link options of any core or custom document directly, without relying on the official Frappe desk frontend.
+3. **Schema Diff Visualizer**: Take local "Snapshots" of a DocType's current structure. Modify your server (or switch to a DEV environment) and easily spot added, modified, or removed fields visually using the integrated Diffing tool.
+4. **Automated API Test Runner**: Build your own suite of manual tests (GET, POST, PUT, DELETE) against the Frappe API, verify results with a single click, and seamlessly ensure mandatory field payloads are accepted.
+5. **JSON Payload Generator**: Instant "Copy Payload" button that generates the exact mandatory data structure, ready to be pasted into Postman, Bruno, or external integration backends.
+6. **Local Webhook Listener**: The application features a dedicated NodeJS proxy scanner listening at `localhost:3000/api/webhook-listener`. Configure Frappe to send events to this endpoint and instantly debug incoming payloads in real-time through the Webhooks UI.
+7. **Light / Dark Theme**: Eye-friendly development interface with a 🌛 / 🌞 toggle.
+8. **Global Search (Ctrl+K / Cmd+K)**: Instantly search and access any locally cached DocType property via a VS Code style omnibar.
 
-## ⚙️ Tecnologías
+## ⚙️ Technologies
 
-- **Frontend:** Vanilla JavaScript, Tailwind CSS, HTML5. UI enfocada a rendimiento sub-milísegundo. Sin frameworks pesados.
-- **Proxy/Backend:** NodeJS, Express, HTTP-Proxy-Middleware (Para sortear la política CORS de Frappe en el navegador y atrapar llamadas).
+- **Frontend:** Vanilla JavaScript, Tailwind CSS, HTML5. Engineered for sub-millisecond rendering without bulky framework overhead.
+- **Proxy/Backend:** NodeJS, Express, HTTP-Proxy-Middleware (used exclusively to bypass Frappe CORS policies natively and catch incoming webhooks).
 
 ---
 
-## 🛠️ Instalación y Uso
+## 🛠️ Installation & Usage
 
-Asegúrate de tener instalado [Node.js v14 o superior](https://nodejs.org/).
+Make sure you have [Node.js v14 or higher](https://nodejs.org/) installed on your machine.
 
-1. Clona el repositorio:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/TU_EMPRESA/frappe-inspector.git
-   cd frappe-inspector
+   git clone https://github.com/Xappiens/frappe-api-inspector.git
+   cd frappe-api-inspector
    ```
 
-2. Instala las dependencias del proxy:
+2. Install backend dependencies:
    ```bash
    npm install
    ```
 
-3. Levanta el servidor:
+3. Start the local proxy server:
    ```bash
    npm start
    ```
-   *(Pista: En Windows también puedes doble-clic directamente en `start.bat`)*
+   *(Hint: On Windows, you can effortlessly double-click `start.bat`)*
 
-4. La aplicación web se abrirá por defecto en **[http://localhost:3500](http://localhost:3500)**. La consola de Node.js se encargará de gestionar el tráfico cruzado CORS con tu dominio real de ERPNext.
-
----
-
-## 🔐 Configuración de la API Key en Frappe
-
-Para conectar la app:
-1. Inicia sesión en Frappe/ERPNext de tu empresa.
-2. Ve al Perfil de Usuario.
-3. Activa / Genera las correspondientes **API Key** y **API Secret**.
-4. Pega tus credenciales y la URL base de tu instalación (ej. `https://erp.tuempresa.com`) en la barra lateral de conexión de la herramienta.
+4. The web application will launch automatically at **[http://localhost:3500](http://localhost:3500)**. 
 
 ---
 
-## 👨‍💻 Autor
+## 🔐 Frappe API Key Configuration
 
-Desarrollado y diseñado con ♥ por **Javier Rodriguez Fernandez**.
+To connect the Inspector to your Frappe ERP:
+1. Log in to your company's Frappe/ERPNext portal normally.
+2. Navigate to your User Profile (`My Settings`).
+3. Generate new **API Key** and **API Secret**.
+4. Paste your credentials and your instance's base URL (e.g., `https://erp.yourcompany.com`) into the tool's connection sidebar.
+
+---
+
+## 👨‍💻 Author
+
+Designed and developed with ♥ by **Javier Rodriguez Fernandez**.
