@@ -28,7 +28,7 @@ A powerful and intelligent **Single Page Application (SPA)** designed to interac
 *A sneak peek into the Frappe API Inspector's sleek, dark-themed UI natively built for maximum efficiency.*
 
 <!-- Add your image or GIF URL below -->
-![Frappe Inspector Preview](YOUR_SCREENSHOT_URL_HERE)
+![Frappe Inspector Preview](preview.webp)
 
 ---
 
