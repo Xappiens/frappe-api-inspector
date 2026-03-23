@@ -104,4 +104,4 @@ To connect the Inspector to your Frappe ERP:
 
 ## 👨‍💻 Author
 
-Designed and developed with ♥ by **Javier Rodriguez Fernandez**.
+Designed and developed by **Javier Rodriguez Fernandez**.
