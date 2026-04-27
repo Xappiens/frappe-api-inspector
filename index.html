@@ -31,9 +31,9 @@
         .dark {
             --color-editor-bg: #1e1e2e;
             --color-editor-sidebar: #181825;
-            --color-editor-surface: #242438;
-            --color-editor-surface2: #2a2a3e;
-            --color-editor-border: #333350;
+            --color-editor-surface: #2c2c40;
+            --color-editor-surface2: #383852;
+            --color-editor-border: #444466;
             --color-editor-text: #cdd6f4;
             --color-editor-subtext: #a6adc8;
             --color-editor-accent: #89b4fa;
@@ -102,9 +102,10 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="style.css?v=9" rel="stylesheet">
 </head>
 <body class="bg-editor-bg text-editor-text font-sans antialiased h-screen overflow-hidden select-none">
 
@@ -117,7 +118,7 @@
             <!-- Logo & Brand + Theme Toggle -->
             <div class="h-12 min-h-[48px] px-5 flex items-center justify-between border-b border-editor-border bg-editor-surface">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-6 h-6 rounded bg-editor-accent/20 flex items-center justify-center">
+                    <div class="w-6 h-6 rounded bg-editor-accent flex items-center justify-center">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
                         </svg>
@@ -155,10 +156,7 @@
                     </div>
                 </div>
 
-                <button id="btn-connect" class="w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200
-                    bg-editor-accent/10 text-editor-accent border border-editor-accent/20
-                    hover:bg-editor-accent/20 hover:border-editor-accent/40
-                    active:scale-[0.98] flex items-center justify-center gap-2">
+                <button id="btn-connect" class="w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 bg-editor-surface2 text-editor-accent border border-editor-accent hover:bg-editor-accent hover:text-white transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
@@ -209,7 +207,7 @@
 
             <!-- Tab Content: Collections -->
             <div id="tab-content-collections" class="hidden flex-1 flex-col overflow-hidden">
-                <div class="px-4 py-3 border-b border-editor-border bg-editor-surface/30 flex justify-between items-center">
+                <div class="px-4 py-3 border-b border-editor-border bg-editor-surface flex justify-between items-center">
                     <p class="text-[10px] text-editor-subtext">Tus payloads guardados localmente.</p>
                 </div>
                 <div class="flex-1 overflow-y-auto custom-scrollbar">
@@ -226,7 +224,7 @@
 
             <!-- Tab Content: Webhooks -->
             <div id="tab-content-webhooks" class="hidden flex-1 flex-col overflow-hidden bg-editor-bg">
-                <div class="px-4 py-3 border-b border-editor-border bg-editor-surface/30 flex justify-between items-center">
+                <div class="px-4 py-3 border-b border-editor-border bg-editor-surface flex justify-between items-center">
                     <div>
                         <p class="text-[10px] font-bold text-editor-text">Webhook Listener actívo.</p>
                         <p class="text-[9px] text-editor-subtext">POST to: /api/webhook-listener</p>
@@ -279,7 +277,7 @@
                     </button>
                     <div class="w-px h-4 bg-editor-border mx-1"></div>
                     <h2 id="inspector-title" class="text-sm font-semibold text-editor-subtext">Selecciona un DocType</h2>
-                    <span id="field-count-badge" class="hidden text-[10px] font-medium px-2 py-0.5 rounded-full bg-editor-accent/10 text-editor-accent border border-editor-accent/20"></span>
+                    <span id="field-count-badge" class="hidden text-[10px] font-medium px-2 py-0.5 rounded-full bg-editor-accent text-white border border-editor-accent"></span>
                 </div>
                 <div id="inspector-actions" class="hidden flex items-center gap-2">
                     <div class="relative">
@@ -289,29 +287,32 @@
                         <input id="input-search-fields" type="text" placeholder="Filtrar campos..."
                             class="input-field pl-8 text-xs w-48" autocomplete="off">
                     </div>
-                    <button id="btn-generate-payload" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
-                        bg-editor-green/10 text-editor-green border border-editor-green/20
-                        hover:bg-editor-green/20 hover:border-editor-green/40
-                        active:scale-[0.98] flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <button id="btn-generate-payload" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-accent text-white border border-editor-accent hover:opacity-90 active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                         </svg>
                         Generar Payload
                     </button>
-                    <button id="btn-view-records" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
-                        bg-editor-accent2/10 text-editor-accent2 border border-editor-accent2/20
-                        hover:bg-editor-accent2/20 hover:border-editor-accent2/40
-                        active:scale-[0.98] flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                    <button id="btn-relationship-map" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-green border border-editor-green/30 hover:bg-editor-green hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                        </svg>
+                        Mapa Relacional
+                    </button>
+                    <button id="btn-upload-file" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-teal border border-editor-teal/30 hover:bg-editor-teal hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
+                        </svg>
+                        Subir Archivo
+                    </button>
+                    <button id="btn-view-records" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-blue border border-editor-blue/30 hover:bg-editor-blue hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 12h16M4 16h16" />
                         </svg>
                         Ver Registros
                     </button>
-                    <button id="btn-create-doc" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
-                        bg-editor-mauve/10 text-editor-mauve border border-editor-mauve/20
-                        hover:bg-editor-mauve/20 hover:border-editor-mauve/40
-                        active:scale-[0.98] flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <button id="btn-create-doc" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-mauve border border-editor-mauve/30 hover:bg-editor-mauve hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                         </svg>
                         Crear Documento
@@ -349,10 +350,21 @@
                     </div>
                 </div>
 
+                <!-- Inspector Tabs -->
+                <div id="inspector-tabs-container" class="hidden flex border-b border-editor-border bg-editor-surface px-6 pt-2 gap-4">
+                    <button id="tab-inspector-fields" class="py-2 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors">Estructura del DocType</button>
+                    <button id="tab-inspector-perms" class="py-2 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        Auditor de Permisos
+                    </button>
+                </div>
+
                 <!-- Fields Table -->
                 <div id="fields-table-container" class="hidden">
                     <!-- Schema Actions -->
-                    <div class="bg-editor-surface/40 border-b border-editor-border/50 px-6 py-2 flex items-center justify-between">
+                    <div class="bg-editor-surface border-b border-editor-border/50 px-6 py-3 flex items-center justify-between inspector-header-block">
                         <span class="text-[10px] uppercase tracking-wider font-semibold text-editor-subtext">Schema Engine</span>
                         <div class="flex items-center gap-2">
                             <span id="snapshot-status" class="text-[10px] text-editor-subtext italic mr-2"></span>
@@ -365,17 +377,47 @@
                         </div>
                     </div>
                     <table class="w-full">
-                        <thead class="sticky top-0 z-10">
-                            <tr class="bg-editor-surface border-b border-editor-border text-[11px] uppercase tracking-wider text-editor-subtext">
-                                <th class="text-left py-2.5 px-4 font-semibold w-8">#</th>
-                                <th class="text-left py-2.5 px-4 font-semibold">Label</th>
-                                <th class="text-left py-2.5 px-4 font-semibold">Fieldname</th>
-                                <th class="text-left py-2.5 px-4 font-semibold">Fieldtype</th>
-                                <th class="text-center py-2.5 px-4 font-semibold">Required</th>
-                                <th class="text-left py-2.5 px-4 font-semibold">Options</th>
+                        <thead class="border-b border-editor-border text-[10px] uppercase font-bold sticky top-0 z-20 bg-editor-bg shadow-sm">
+                            <tr>
+                                <th class="w-16 py-3 text-center text-editor-subtext/60">#</th>
+                                <th class="py-3 px-4 text-left text-editor-subtext/60">Etiqueta</th>
+                                <th class="py-3 px-4 text-left text-editor-subtext/60">Nombre Campo</th>
+                                <th class="py-3 px-4 text-left text-editor-subtext/60">Tipo</th>
+                                <th class="w-20 py-3 text-center text-editor-subtext/60">Mand.</th>
+                                <th class="py-3 px-4 text-left text-editor-subtext/60">Lógica / Relación</th>
+                                <th class="py-3 px-4 text-left text-editor-subtext/60">Opciones</th>
                             </tr>
                         </thead>
                         <tbody id="fields-tbody" class="text-sm"></tbody>
+                    </table>
+                </div>
+
+                <!-- Permissions Table -->
+                <div id="permissions-table-container" class="hidden">
+                    <div class="bg-editor-surface border-b border-editor-border/50 px-6 py-3 flex items-center justify-between inspector-header-block">
+                        <span class="text-[10px] uppercase tracking-wider font-semibold text-editor-subtext">Security & Role Matrix</span>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-refresh-perms" class="text-[10px] text-editor-subtext hover:text-editor-accent transition-colors flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                Refrescar
+                            </button>
+                        </div>
+                    </div>
+                    <table class="w-full">
+                        <thead class="border-b border-editor-border text-[10px] uppercase font-bold sticky top-0 z-20 bg-editor-bg shadow-sm">
+                            <tr>
+                                <th class="w-10 py-2.5 text-center text-editor-subtext/60"><svg class="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></th>
+                                <th class="py-2.5 text-left text-editor-subtext/60">Rol Frappe</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Read">Lect.</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Write">Escr.</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Create">Crear</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Delete">Borr.</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Submit">Env.</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Cancel">Canc.</th>
+                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Amend">Mod.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="permissions-tbody" class="text-sm"></tbody>
                     </table>
                 </div>
                 
@@ -388,7 +430,7 @@
                 <!-- Bulk Actions Float Bar -->
                 <div id="bulk-actions-bar" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-editor-surface border border-editor-border rounded-xl shadow-2xl px-5 py-3 flex items-center gap-4 z-20 transition-all duration-300 translate-y-24 opacity-0 pointer-events-none">
                     <div class="flex items-center gap-2 border-r border-editor-border pr-4">
-                        <span id="bulk-count" class="w-6 h-6 rounded bg-editor-accent/20 text-editor-accent flex items-center justify-center text-xs font-bold">0</span>
+                        <span id="bulk-count" class="w-6 h-6 rounded bg-editor-accent text-white flex items-center justify-center text-xs font-bold">0</span>
                         <span class="text-xs font-semibold text-editor-subtext">Seleccionados</span>
                     </div>
                     <div class="flex items-center gap-2">
@@ -404,10 +446,10 @@
 
     <!-- ═══════════════════ PAYLOAD MODAL ═══════════════════ -->
     <div id="payload-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <div id="modal-backdrop" class="absolute inset-0 bg-editor-overlay backdrop-blur-sm"></div>
-        <div id="modal-content" class="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-[640px] max-h-[80vh] flex flex-col animate-scale-in">
+        <div id="modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div id="modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[640px] max-h-[80vh] flex flex-col animate-scale-in">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <div class="flex items-center gap-2.5">
                     <div class="w-6 h-6 rounded-md bg-editor-green/10 flex items-center justify-center">
                         <svg class="w-3.5 h-3.5 text-editor-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -446,17 +488,17 @@
             </div>
             <!-- Modal Body -->
             <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
-                <pre id="payload-code" class="text-xs font-mono leading-relaxed text-editor-text whitespace-pre-wrap break-all"></pre>
+                <pre id="payload-code" class="text-[11px] font-mono leading-relaxed text-editor-text whitespace-pre-wrap break-all bg-editor-bg p-4 rounded-lg border border-editor-border"></pre>
             </div>
         </div>
     </div>
 
     <!-- ═══════════════════ CREATE DOCUMENT MODAL ═══════════════════ -->
     <div id="create-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <div id="create-modal-backdrop" class="absolute inset-0 bg-editor-overlay backdrop-blur-sm"></div>
-        <div id="create-modal-content" class="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-[720px] max-h-[85vh] flex flex-col animate-scale-in">
+        <div id="create-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div id="create-modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[720px] max-h-[85vh] flex flex-col animate-scale-in">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <div class="flex items-center gap-2.5">
                     <div class="w-6 h-6 rounded-md bg-editor-mauve/10 flex items-center justify-center">
                         <svg class="w-3.5 h-3.5 text-editor-mauve" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -511,13 +553,13 @@
 
     <!-- ═══════════════════ RECORDS MODAL ═══════════════════ -->
     <div id="records-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <div id="records-modal-backdrop" class="absolute inset-0 bg-editor-overlay backdrop-blur-sm"></div>
-        <div id="records-modal-content" class="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[1200px] h-[85vh] flex flex-col animate-scale-in">
+        <div id="records-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div id="records-modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[1200px] h-[85vh] flex flex-col animate-scale-in">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-6 h-6 rounded-md bg-editor-accent2/10 flex items-center justify-center">
-                        <svg class="w-3.5 h-3.5 text-editor-accent2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <div class="w-6 h-6 rounded-md bg-editor-accent2 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                         </svg>
                     </div>
@@ -528,14 +570,21 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <button id="btn-export-csv" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
-                        bg-editor-green/10 text-editor-green border border-editor-green/30
-                        hover:bg-editor-green/20 hover:border-editor-green/50
+                        bg-editor-surface border border-editor-green text-editor-green
+                        hover:bg-editor-green hover:text-white
                         active:scale-[0.98] flex items-center gap-1.5 focus:outline-none">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         CSV
                     </button>
+                    <div class="relative flex items-center group ml-2">
+                        <svg class="absolute left-3 w-3.5 h-3.5 text-editor-subtext group-focus-within:text-editor-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input id="input-records-quick-search" type="text" placeholder="Buscar por name, email o título..." 
+                            class="bg-editor-surface border border-editor-border rounded-lg pl-9 pr-3 py-1.5 text-[11px] w-64 focus:outline-none focus:border-editor-accent/50 focus:ring-1 focus:ring-editor-accent/20 transition-all">
+                    </div>
                     <button id="btn-toggle-filters" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
                         bg-editor-surface text-editor-subtext border border-editor-border
                         hover:text-editor-text hover:border-editor-subtext/40
@@ -563,7 +612,7 @@
             </div>
             
             <!-- Query Builder Panel -->
-            <div id="query-builder-panel" class="hidden flex-col bg-editor-surface/30 border-b border-editor-border p-4 animate-slide-up">
+            <div id="query-builder-panel" class="hidden flex-col bg-editor-surface border-b border-editor-border p-4 animate-slide-up">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[11px] font-semibold text-editor-subtext uppercase tracking-wider">Filtros Activos</span>
                     <button id="btn-clear-filters" class="text-[10px] text-editor-red hover:underline focus:outline-none">Limpiar todos</button>
@@ -575,7 +624,7 @@
                     <button id="btn-add-filter" class="py-1 px-3 rounded-md text-[11px] font-medium transition-all duration-200 bg-editor-surface border border-editor-border text-editor-text hover:bg-editor-surface2">
                         + Añadir filtro
                     </button>
-                    <button id="btn-apply-filters" class="py-1 px-3 rounded-md text-[11px] font-semibold transition-all duration-200 bg-editor-accent/10 border border-editor-accent/30 text-editor-accent hover:bg-editor-accent/20">
+                    <button id="btn-apply-filters" class="py-1.5 px-4 rounded-md text-[11px] font-semibold transition-all duration-200 bg-editor-accent text-white border border-editor-accent hover:bg-editor-accent2">
                         Aplicar Filtros
                     </button>
                 </div>
@@ -599,12 +648,12 @@
             <!-- Modal Body: Table -->
             <div id="records-table-container" class="hidden flex-1 overflow-auto custom-scrollbar relative">
                 <table class="w-full text-left whitespace-nowrap">
-                    <thead class="sticky top-0 z-10 bg-editor-surface shadow-sm">
-                        <tr id="records-thead-tr" class="border-b border-editor-border text-[11px] uppercase tracking-wider text-editor-subtext">
+                    <thead class="sticky top-0 z-20 bg-editor-surface2 shadow-md">
+                        <tr id="records-thead-tr" class="bg-editor-surface2 border-b border-editor-border text-[11px] uppercase tracking-wider text-editor-subtext">
                             <!-- Injected dynamically -->
                         </tr>
                     </thead>
-                    <tbody id="records-tbody" class="text-xs divide-y divide-editor-border/50">
+                    <tbody id="records-tbody" class="text-xs divide-y divide-editor-border">
                         <!-- Injected dynamically -->
                     </tbody>
                 </table>
@@ -614,16 +663,16 @@
 
     <!-- ═══════════════════ DATA DIFF MODAL ═══════════════════ -->
     <div id="diff-modal" class="fixed inset-0 z-[80] hidden items-center justify-center">
-        <div id="diff-modal-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div id="diff-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[500px] flex flex-col animate-scale-in">
-            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface/50">
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <h3 class="text-sm font-semibold text-editor-text">Confirmar Cambios</h3>
                 <p class="text-[10px] text-editor-subtext">Revisa los cambios antes de enviarlos a Frappe</p>
             </div>
             <div id="diff-modal-body" class="p-5 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2">
                 <!-- Diff rows injected here -->
             </div>
-            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface/50 flex justify-end gap-3">
+            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface2 flex justify-end gap-3 rounded-b-xl">
                 <button id="btn-cancel-diff" class="px-4 py-2 rounded-lg text-xs font-medium text-editor-text hover:bg-editor-surface transition-colors border border-transparent hover:border-editor-border">Cancelar</button>
                 <button id="btn-confirm-diff" class="px-4 py-2 rounded-lg text-xs font-bold bg-editor-yellow text-editor-bg hover:brightness-110 transition-colors shadow-sm">Confirmar PUT</button>
             </div>
@@ -632,9 +681,9 @@
 
     <!-- ═══════════════════ BULK EDIT MODAL ═══════════════════ -->
     <div id="bulk-edit-modal" class="fixed inset-0 z-[80] hidden items-center justify-center">
-        <div id="bulk-edit-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div id="bulk-edit-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[400px] flex flex-col animate-scale-in">
-            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface/50">
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <h3 class="text-sm font-semibold text-editor-text">Edición en Lote</h3>
                 <p id="bulk-edit-subtitle" class="text-[10px] text-editor-subtext">0 registros seleccionados</p>
             </div>
@@ -650,7 +699,7 @@
                     <input type="text" id="bulk-edit-value" class="input-field w-full text-sm" placeholder="Escribe el nuevo valor...">
                 </div>
             </div>
-            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface/50 flex justify-end gap-3">
+            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface2 flex justify-end gap-3 rounded-b-xl">
                 <button id="btn-cancel-bulk-edit" class="px-4 py-2 rounded-lg text-xs font-medium text-editor-text hover:bg-editor-surface transition-colors border border-transparent hover:border-editor-border">Cancelar</button>
                 <button id="btn-confirm-bulk-edit" class="px-4 py-2 rounded-lg text-xs font-bold bg-editor-yellow text-editor-bg hover:brightness-110 transition-colors shadow-sm flex items-center gap-2">
                     Ejecutar PUT
@@ -662,9 +711,9 @@
 
     <!-- ═══════════════════ SAVE COLLECTION MODAL ═══════════════════ -->
     <div id="save-collection-modal" class="fixed inset-0 z-[80] hidden items-center justify-center">
-        <div id="save-collection-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div id="save-collection-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[350px] flex flex-col animate-scale-in">
-            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface/50">
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <h3 class="text-sm font-semibold text-editor-text">Guardar Colección</h3>
                 <p class="text-[10px] text-editor-subtext">Dale un nombre para identificar este payload</p>
             </div>
@@ -673,7 +722,7 @@
                     <input type="text" id="input-collection-name" class="input-field w-full text-sm" placeholder="Ej: Creación Lead MKT...">
                 </div>
             </div>
-            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface/50 flex justify-end gap-3">
+            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface2 flex justify-end gap-3 rounded-b-xl">
                 <button id="btn-cancel-save-collection" class="px-4 py-2 rounded-lg text-xs font-medium text-editor-text hover:bg-editor-surface transition-colors border border-transparent hover:border-editor-border">Cancelar</button>
                 <button id="btn-confirm-save-collection" class="px-4 py-2 rounded-lg text-xs font-bold bg-editor-accent text-editor-bg hover:bg-editor-accent/90 transition-colors shadow-sm">Guardar</button>
             </div>
@@ -682,10 +731,10 @@
 
     <!-- ═══════════════════ COMMENTS SUB-MODAL ═══════════════════ -->
     <div id="comments-modal" class="fixed inset-0 z-[60] hidden items-center justify-center">
-        <div id="comments-modal-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div id="comments-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div id="comments-modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[600px] max-h-[70vh] flex flex-col animate-scale-in">
             <!-- Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface/50">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
                 <div class="flex items-center gap-2.5">
                     <div class="w-6 h-6 rounded-md bg-editor-accent/10 flex items-center justify-center">
                         <svg class="w-3.5 h-3.5 text-editor-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -711,9 +760,9 @@
     </div>
     <!-- ═══════════════════ SCHEMA DIFF MODAL ═══════════════════ -->
     <div id="schema-diff-modal" class="fixed inset-0 z-[80] hidden items-center justify-center">
-        <div id="schema-diff-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div id="schema-diff-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[700px] flex flex-col animate-scale-in max-h-[80vh]">
-            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface/50 flex items-center justify-between">
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-semibold text-editor-text">Comparador de Schema</h3>
                     <p id="schema-diff-subtitle" class="text-[10px] text-editor-subtext">Snapshot vs Actual</p>
@@ -732,10 +781,10 @@
 
     <!-- ═══════════════════ API TEST SUITE MODAL ═══════════════════ -->
     <div id="tests-modal" class="fixed inset-0 z-[75] hidden items-center justify-center">
-        <div id="tests-modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-        <div class="relative bg-editor-sidebar border border-editor-border rounded-xl shadow-2xl w-[95vw] max-w-[900px] h-[85vh] flex flex-col animate-scale-in overflow-hidden">
+        <div id="tests-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[95vw] max-w-[900px] h-[85vh] flex flex-col animate-scale-in overflow-hidden">
             <!-- Header -->
-            <div class="px-5 py-3.5 border-b border-editor-border flex items-center justify-between bg-editor-surface/80">
+            <div class="px-5 py-3.5 border-b border-editor-border flex items-center justify-between bg-editor-surface2">
                 <div class="flex items-center gap-3">
                     <div class="w-7 h-7 rounded-lg bg-editor-yellow/10 flex items-center justify-center text-editor-yellow">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
@@ -816,7 +865,7 @@
                     
                     <!-- Run Logs Panel (overlay) -->
                     <div id="test-run-logs" class="absolute inset-0 bg-editor-bg flex-col hidden z-10 animate-fade-in border-l border-editor-border">
-                        <div class="p-3 border-b border-editor-border bg-editor-surface flex justify-between items-center sticky top-0">
+                        <div class="p-3 border-b border-editor-border bg-editor-surface flex justify-between items-center sticky top-0 z-10">
                             <span class="text-xs font-bold text-editor-text">Log de Ejecución</span>
                             <button id="btn-close-test-logs" class="text-[10px] text-editor-accent hover:underline">Ocultar Logs</button>
                         </div>
@@ -837,7 +886,7 @@
 
     <!-- ═══════════════════ GLOBAL SEARCH (CMD+K) ═══════════════════ -->
     <div id="global-search-modal" class="fixed inset-0 z-[90] hidden items-start justify-center pt-[10vh]">
-        <div id="global-search-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div id="global-search-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[600px] flex flex-col animate-slide-up overflow-hidden">
             <div class="flex items-center px-4 py-3 border-b border-editor-border bg-editor-surface relative">
                 <svg class="w-5 h-5 text-editor-accent absolute left-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -873,7 +922,7 @@
     </div>
 
     <!-- ═══════════════════ LOGS PANEL ═══════════════════ -->
-    <div id="logs-panel" class="fixed inset-y-0 right-0 z-50 w-full sm:w-[450px] bg-editor-bg/95 backdrop-blur-xl border-l border-editor-border shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300">
+    <div id="logs-panel" class="fixed inset-y-0 right-0 z-50 w-full sm:w-[450px] bg-editor-bg border-l border-editor-border shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300">
         <div class="px-5 py-4 border-b border-editor-border flex items-center justify-between bg-editor-surface">
             <h3 class="text-sm font-semibold text-editor-text flex items-center gap-2">
                 <svg class="w-4 h-4 text-editor-subtext" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -914,10 +963,42 @@
     <!-- ═══════════════════ TOAST ═══════════════════ -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-[70] flex flex-col gap-2"></div>
 
-    <script src="app.js"></script>
-    <!-- ═══════════════════ GLOBAL SEARCH (CMD+K) ═══════════════════ -->
+    <!-- Relationship Map Modal -->
+    <div id="modal-relationship-map" class="fixed inset-0 z-[100] hidden items-center justify-center p-6 md:p-12">
+        <div class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm" onclick="document.getElementById('modal-relationship-map').classList.add('hidden')"></div>
+        <div class="relative bg-editor-surface border border-editor-border rounded-2xl shadow-2xl w-full h-full flex flex-col overflow-hidden animate-scale-in">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-editor-border bg-editor-surface2 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-editor-accent/10 flex items-center justify-center text-editor-accent">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 002-2h-2a2 2 0 002 2"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-editor-text">Mapa de Relaciones</h2>
+                        <p id="map-subtitle" class="text-[11px] text-editor-subtext font-mono"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="px-3 py-1 bg-editor-surface rounded-full border border-editor-border text-[10px] text-editor-subtext flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-editor-accent animate-pulse"></span>
+                        Interactivo
+                    </div>
+                    <button onclick="document.getElementById('modal-relationship-map').classList.add('hidden')" class="p-2 hover:bg-editor-border rounded-full transition-colors text-editor-subtext hover:text-editor-text">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- List Container -->
+            <div class="flex-1 overflow-auto custom-scrollbar bg-editor-surface p-6">
+                <div id="relationship-lists" class="max-w-4xl mx-auto flex flex-col gap-8"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Search Modal (CMD+K) -->
     <div id="global-search-modal" class="fixed inset-0 z-[100] hidden items-start justify-center pt-[10vh]">
-        <div id="global-search-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div id="global-search-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
         <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[600px] flex flex-col animate-scale-in overflow-hidden">
             <div class="flex items-center px-4 py-3 border-b border-editor-border bg-editor-surface2">
                 <svg class="w-5 h-5 text-editor-accent mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -928,8 +1009,15 @@
             </div>
             <div id="global-search-results" class="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col p-1">
                 <!-- Injected via app.js -->
+                <div id="global-search-loading" class="hidden p-8 flex justify-center">
+                    <div class="loader"></div>
+                </div>
+                <div id="global-search-empty" class="hidden p-8 text-center text-xs text-editor-subtext">
+                    <div class="text-2xl mb-2">🔍</div>
+                    No se encontraron resultados
+                </div>
             </div>
-            <div class="px-4 py-2 border-t border-editor-border bg-editor-surface/50 text-[10px] text-editor-subtext flex items-center justify-between">
+            <div class="px-4 py-2 border-t border-editor-border bg-editor-surface text-[10px] text-editor-subtext flex items-center justify-between">
                 <span>Escribe directo para DocTypes. Usa <strong class="text-editor-accent">&gt; query</strong> para buscar fields en BD.</span>
                 <span class="flex gap-2">
                     <span><kbd class="px-1 border border-editor-border rounded">↑↓</kbd> Navegar</span>
@@ -939,5 +1027,85 @@
         </div>
     </div>
 
+    <!-- ═══════════════════ UPLOAD FILE MODAL ═══════════════════ -->
+    <div id="upload-modal" class="fixed inset-0 z-[80] hidden items-center justify-center">
+        <div id="upload-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[500px] flex flex-col animate-scale-in overflow-hidden">
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 rounded-t-xl flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-editor-teal/10 flex items-center justify-center text-editor-teal shadow-sm">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" /></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-editor-text">Asistente de Subida</h3>
+                        <p id="upload-modal-subtitle" class="text-xs text-editor-subtext">Adjuntar archivo a registro</p>
+                    </div>
+                </div>
+                <button id="btn-close-upload-modal" class="p-2 hover:bg-editor-border rounded-lg transition-colors text-editor-subtext hover:text-editor-text">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <!-- Dropzone -->
+                <div id="dropzone" class="border-2 border-dashed border-editor-border rounded-xl p-10 flex flex-col items-center justify-center gap-4 bg-editor-bg hover:bg-editor-surface2 hover:border-editor-teal transition-all group cursor-pointer shadow-inner">
+                    <div class="w-14 h-14 rounded-full bg-editor-teal/10 flex items-center justify-center text-editor-teal group-hover:scale-110 transition-transform">
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm font-bold text-editor-text">Arrastra un archivo aquí</p>
+                        <p class="text-xs text-editor-subtext mt-1">o haz clic para buscar en tu equipo (Máx. 10MB)</p>
+                    </div>
+                    <input type="file" id="input-file-upload" class="hidden">
+                    
+                    <!-- Selected File Info -->
+                    <div id="selected-file-info" class="hidden w-full mt-4 p-3 bg-editor-surface border border-editor-teal shadow-sm rounded-lg animate-slide-up">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                <div class="w-8 h-8 rounded bg-editor-teal/10 flex items-center justify-center text-editor-teal shrink-0">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                </div>
+                                <span id="file-name-display" class="text-xs font-semibold text-editor-text truncate"></span>
+                            </div>
+                            <button id="btn-remove-file" class="text-editor-red hover:bg-editor-red/10 p-1.5 rounded transition-colors ml-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Targeting -->
+                <div class="space-y-4 bg-editor-bg p-4 rounded-xl border border-editor-border">
+                    <div>
+                        <label class="block text-xs font-bold text-editor-text mb-2">ID del Registro (docname)</label>
+                        <input type="text" id="upload-target-id" class="input-field w-full font-mono text-sm shadow-sm" placeholder="Ej: HR-EMP-0001 o Sales Order 123">
+                        <p class="text-[10px] text-editor-subtext mt-1.5">Si se deja vacío, el archivo se subirá pero no se adjuntará a ningún registro específico.</p>
+                    </div>
+                    <div class="flex items-center gap-2 pt-1">
+                        <input type="checkbox" id="upload-private" class="w-4 h-4 rounded text-editor-teal bg-editor-surface border-editor-border focus:ring-editor-teal focus:ring-2" checked>
+                        <label for="upload-private" class="text-xs font-medium text-editor-text cursor-pointer select-none">Archivo Privado (requiere autenticación para ver)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress / Feedback -->
+            <div id="upload-progress-panel" class="hidden px-6 pb-4">
+                <div class="w-full bg-editor-surface2 h-2 rounded-full overflow-hidden shadow-inner">
+                    <div id="upload-progress-bar" class="bg-editor-teal h-full transition-all duration-300 w-0"></div>
+                </div>
+                <p id="upload-status-text" class="text-[10px] text-center mt-2 font-bold text-editor-teal uppercase tracking-widest animate-pulse"></p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-editor-border bg-editor-surface2 flex justify-end gap-3">
+                <button id="btn-cancel-upload" class="px-4 py-2 rounded-lg text-sm font-semibold text-editor-subtext hover:text-editor-text hover:bg-editor-border transition-colors">Cancelar</button>
+                <button id="btn-execute-upload" class="px-6 py-2 rounded-lg text-sm font-bold bg-editor-teal text-white hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:pointer-events-none transition-all shadow-md" disabled>Iniciar Subida</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+    <script src="app.js?v=17"></script>
 </body>
 </html>

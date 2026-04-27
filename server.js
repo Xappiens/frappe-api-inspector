@@ -69,6 +69,12 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    if (req.url === '/api/status' || req.url === '/api/status/') {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ status: 'ok', version: '1.2.0', service: 'Frappe Proxy' }));
+        return;
+    }
+
     // ── CORS Proxy: /proxy/* ──────────────────────────
     if (req.url.startsWith('/proxy/')) {
         handleProxy(req, res);
@@ -106,8 +112,15 @@ function handleProxy(req, res) {
         return;
     }
 
-    // Extract the real URL: /proxy/https://erp.example.com/api/resource/DocType
-    const targetUrl = decodeURIComponent(req.url.replace('/proxy/', ''));
+    // Extract the real URL: /proxy/https%3A%2F%2F...
+    // We decode in case app.js used encodeURIComponent (which it now does)
+    let rawUrl = req.url.replace('/proxy/', '');
+    let targetUrl;
+    try {
+        targetUrl = decodeURIComponent(rawUrl);
+    } catch {
+        targetUrl = rawUrl; // Fallback
+    }
 
     let parsed;
     try {
@@ -120,16 +133,14 @@ function handleProxy(req, res) {
 
     console.log(`[PROXY] ${req.method} → ${parsed.hostname}${parsed.pathname}${parsed.search}`);
 
-    // Forward relevant headers (especially Authorization)
+    // Forward relevant headers (especially Authorization and User-Agent)
     const forwardHeaders = {
         'Content-Type': req.headers['content-type'] || 'application/json',
         'Accept': 'application/json',
+        'User-Agent': req.headers['user-agent'] || 'Frappe-DocType-Inspector/1.1',
     };
     if (req.headers['authorization']) {
         forwardHeaders['Authorization'] = req.headers['authorization'];
-        console.log(`[PROXY] Auth header present: ${req.headers['authorization'].substring(0, 20)}...`);
-    } else {
-        console.log('[PROXY] ⚠ No Authorization header!');
     }
 
     const isHttps = parsed.protocol === 'https:';
@@ -141,35 +152,40 @@ function handleProxy(req, res) {
         path: parsed.pathname + parsed.search,
         method: req.method,
         headers: forwardHeaders,
-        rejectUnauthorized: false, // Permitir conexiones a ERPs locales con certificados auto-firmados
+        rejectUnauthorized: false,
+        timeout: 15000, // 15s timeout
     };
 
     const proxyReq = transport.request(options, (proxyRes) => {
         console.log(`[PROXY] ← ${proxyRes.statusCode} from ${parsed.hostname}`);
+
+        // Set CORS headers for all responses
+        const corsHeaders = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Content-Type': proxyRes.headers['content-type'] || 'application/json',
+        };
 
         // Collect response body for logging if error
         if (proxyRes.statusCode >= 400) {
             let body = '';
             proxyRes.on('data', chunk => body += chunk);
             proxyRes.on('end', () => {
-                console.log(`[PROXY] Error body: ${body.substring(0, 500)}`);
-                res.writeHead(proxyRes.statusCode, {
-                    'Content-Type': proxyRes.headers['content-type'] || 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': '*',
-                    'Access-Control-Allow-Methods': '*',
-                });
+                res.writeHead(proxyRes.statusCode, corsHeaders);
                 res.end(body);
             });
         } else {
-            res.writeHead(proxyRes.statusCode, {
-                'Content-Type': proxyRes.headers['content-type'] || 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': '*',
-                'Access-Control-Allow-Methods': '*',
-            });
+            res.writeHead(proxyRes.statusCode, corsHeaders);
             proxyRes.pipe(res);
         }
+    });
+
+    proxyReq.on('timeout', () => {
+        console.error('[PROXY] Request timed out');
+        proxyReq.destroy();
+        res.writeHead(504, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: 'Proxy Timeout: El servidor Frappe tardó demasiado en responder.' }));
     });
 
     proxyReq.on('error', (err) => {
@@ -181,8 +197,12 @@ function handleProxy(req, res) {
         res.end(JSON.stringify({ error: `Proxy error: ${err.message}` }));
     });
 
-    // Pipe request body for POST/PUT
-    req.pipe(proxyReq);
+    // Pipe request body for methods that support it
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        req.pipe(proxyReq);
+    } else {
+        proxyReq.end();
+    }
 }
 
 server.listen(PORT, () => {
