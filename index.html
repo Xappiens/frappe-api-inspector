@@ -19,6 +19,8 @@
             --color-editor-subtext: #6c757d;
             --color-editor-accent: #0d6efd;
             --color-editor-accent2: #0dcaf0;
+            --color-editor-blue: #0d6efd;
+            --color-editor-orange: #fd7e14;
             --color-editor-green: #198754;
             --color-editor-red: #dc3545;
             --color-editor-yellow: #f59e0b;
@@ -38,6 +40,8 @@
             --color-editor-subtext: #a6adc8;
             --color-editor-accent: #89b4fa;
             --color-editor-accent2: #74c7ec;
+            --color-editor-blue: #89b4fa;
+            --color-editor-orange: #fab387;
             --color-editor-green: #a6e3a1;
             --color-editor-red: #f38ba8;
             --color-editor-yellow: #f9e2af;
@@ -70,6 +74,8 @@
                             subtext: 'var(--color-editor-subtext)',
                             accent: 'var(--color-editor-accent)',
                             accent2: 'var(--color-editor-accent2)',
+                            blue: 'var(--color-editor-blue)',
+                            orange: 'var(--color-editor-orange)',
                             green: 'var(--color-editor-green)',
                             red: 'var(--color-editor-red)',
                             yellow: 'var(--color-editor-yellow)',
@@ -105,7 +111,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    <link href="style.css?v=9" rel="stylesheet">
+    <link href="style.css?v=23" rel="stylesheet">
 </head>
 <body class="bg-editor-bg text-editor-text font-sans antialiased h-screen overflow-hidden select-none">
 
@@ -270,14 +276,20 @@
             <header id="main-header" class="h-12 min-h-[48px] border-b border-editor-border flex items-center justify-between px-6">
                 <div class="flex items-center gap-3">
                     <button id="btn-toggle-logs" class="py-1 px-2.5 rounded text-[11px] font-semibold transition-all duration-200 bg-editor-surface2 text-editor-subtext border border-editor-border hover:text-editor-text hover:border-editor-subtext/40 shadow-sm flex items-center gap-1.5" title="Ver Historial de Peticiones">
-                        ⏱️ Logs
+                        Logs
                     </button>
                     <button id="btn-open-tests" class="py-1 px-2.5 rounded text-[11px] font-semibold transition-all duration-200 bg-editor-surface2 text-editor-subtext border border-editor-border hover:text-editor-text hover:border-editor-subtext/40 shadow-sm flex items-center gap-1.5" title="Abrir API Test Suite">
-                        🧪 Tests
+                        Tests
+                    </button>
+                    <button id="btn-open-dashboard" class="py-1 px-2.5 rounded text-[11px] font-semibold transition-all duration-200 bg-editor-surface2 text-editor-subtext border border-editor-border hover:text-editor-text hover:border-editor-subtext/40 shadow-sm flex items-center gap-1.5" title="Abrir Dashboard">
+                        Dash
+                    </button>
+                    <button id="btn-open-console" class="py-1 px-2.5 rounded text-[11px] font-semibold transition-all duration-200 bg-editor-surface2 text-editor-subtext border border-editor-border hover:text-editor-text hover:border-editor-subtext/40 shadow-sm flex items-center gap-1.5" title="Abrir Consola API">
+                        Console
                     </button>
                     <div class="w-px h-4 bg-editor-border mx-1"></div>
                     <h2 id="inspector-title" class="text-sm font-semibold text-editor-subtext">Selecciona un DocType</h2>
-                    <span id="field-count-badge" class="hidden text-[10px] font-medium px-2 py-0.5 rounded-full bg-editor-accent text-white border border-editor-accent"></span>
+                    <span id="field-count-badge" data-has-value="false" class="hidden px-2 py-0.5 rounded-md text-[10px] font-semibold border"></span>
                 </div>
                 <div id="inspector-actions" class="hidden flex items-center gap-2">
                     <div class="relative">
@@ -291,25 +303,44 @@
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                         </svg>
-                        Generar Payload
+                        Payload
+                    </button>
+                    <div class="relative group">
+                        <button id="btn-export-schema" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-yellow border border-editor-yellow/30 hover:bg-editor-yellow hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Esquema
+                        </button>
+                        <div id="schema-export-menu" class="hidden absolute right-0 mt-2 w-36 bg-editor-surface border border-editor-border rounded-lg shadow-xl z-40 p-1">
+                            <button data-schema-export-format="csv" class="schema-export-option w-full text-left px-3 py-2 rounded text-[11px] font-semibold text-editor-subtext hover:bg-editor-surface2 hover:text-editor-text">CSV</button>
+                            <button data-schema-export-format="json" class="schema-export-option w-full text-left px-3 py-2 rounded text-[11px] font-semibold text-editor-subtext hover:bg-editor-surface2 hover:text-editor-text">JSON</button>
+                            <button data-schema-export-format="md" class="schema-export-option w-full text-left px-3 py-2 rounded text-[11px] font-semibold text-editor-subtext hover:bg-editor-surface2 hover:text-editor-text">Markdown</button>
+                        </div>
+                    </div>
+                    <button id="btn-generate-api-tests" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-pink border border-editor-pink/30 hover:bg-editor-pink hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                        </svg>
+                        Tests API
                     </button>
                     <button id="btn-relationship-map" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-green border border-editor-green/30 hover:bg-editor-green hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
                         </svg>
-                        Mapa Relacional
+                        Mapa
                     </button>
                     <button id="btn-upload-file" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-teal border border-editor-teal/30 hover:bg-editor-teal hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
                         </svg>
-                        Subir Archivo
+                        Subir
                     </button>
                     <button id="btn-view-records" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-blue border border-editor-blue/30 hover:bg-editor-blue hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 12h16M4 16h16" />
                         </svg>
-                        Ver Registros
+                        Registros
                     </button>
                     <button id="btn-create-doc" class="py-1.5 px-3 rounded-lg text-[11px] font-bold transition-all duration-200 bg-editor-surface2 text-editor-mauve border border-editor-mauve/30 hover:bg-editor-mauve hover:text-white active:scale-[0.98] flex items-center gap-1.5 shadow-sm">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -353,12 +384,6 @@
                 <!-- Inspector Tabs -->
                 <div id="inspector-tabs-container" class="hidden flex border-b border-editor-border bg-editor-surface px-6 pt-2 gap-4">
                     <button id="tab-inspector-fields" class="py-2 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors">Estructura del DocType</button>
-                    <button id="tab-inspector-perms" class="py-2 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                        </svg>
-                        Auditor de Permisos
-                    </button>
                 </div>
 
                 <!-- Fields Table -->
@@ -392,35 +417,6 @@
                     </table>
                 </div>
 
-                <!-- Permissions Table -->
-                <div id="permissions-table-container" class="hidden">
-                    <div class="bg-editor-surface border-b border-editor-border/50 px-6 py-3 flex items-center justify-between inspector-header-block">
-                        <span class="text-[10px] uppercase tracking-wider font-semibold text-editor-subtext">Security & Role Matrix</span>
-                        <div class="flex items-center gap-2">
-                            <button id="btn-refresh-perms" class="text-[10px] text-editor-subtext hover:text-editor-accent transition-colors flex items-center gap-1">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                Refrescar
-                            </button>
-                        </div>
-                    </div>
-                    <table class="w-full">
-                        <thead class="border-b border-editor-border text-[10px] uppercase font-bold sticky top-0 z-20 bg-editor-bg shadow-sm">
-                            <tr>
-                                <th class="w-10 py-2.5 text-center text-editor-subtext/60"><svg class="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></th>
-                                <th class="py-2.5 text-left text-editor-subtext/60">Rol Frappe</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Read">Lect.</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Write">Escr.</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Create">Crear</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Delete">Borr.</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Submit">Env.</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Cancel">Canc.</th>
-                                <th class="w-16 py-2.5 text-center text-editor-subtext/60" title="Amend">Mod.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="permissions-tbody" class="text-sm"></tbody>
-                    </table>
-                </div>
-                
                 <!-- Loading State -->
                 <div id="loading-state" class="hidden flex-col items-center justify-center h-full">
                     <div class="loader mb-4"></div>
@@ -517,6 +513,12 @@
                         hover:text-editor-yellow hover:border-editor-yellow/40 hover:bg-editor-yellow/10
                         active:scale-[0.98] flex items-center gap-1.5" title="Guardar payload en Colecciones">
                         ⭐ Guardar
+                    </button>
+                    <button id="btn-fill-test-data" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
+                        bg-editor-surface text-editor-subtext border border-editor-border
+                        hover:text-editor-blue hover:border-editor-blue/40 hover:bg-editor-blue/10
+                        active:scale-[0.98] flex items-center gap-1.5" title="Rellenar formulario con datos de prueba">
+                        🧪 Rellenar prueba
                     </button>
                     <button id="btn-submit-doc" class="py-1.5 px-4 rounded-lg text-[11px] font-semibold transition-all duration-200
                         bg-editor-green/10 text-editor-green border border-editor-green/20
@@ -795,8 +797,11 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button id="btn-run-all-tests" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-editor-green text-black hover:bg-editor-green/90 transition-colors shadow flex items-center gap-1.5">
-                        ▶ Ejecutar Todos
+                    <button id="btn-open-test-generator" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-editor-surface border border-editor-border text-editor-text hover:bg-editor-surface2 transition-colors shadow flex items-center gap-1.5">
+                        Generar Tests
+                    </button>
+                    <button id="btn-run-all-tests" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-editor-surface border border-editor-green/40 text-editor-green hover:bg-editor-green/10 transition-colors shadow flex items-center gap-1.5">
+                        Ejecutar Todos
                     </button>
                     <button id="btn-close-tests-modal" class="w-8 h-8 rounded-lg flex items-center justify-center text-editor-subtext hover:text-editor-text hover:bg-editor-surface transition-all">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -849,7 +854,7 @@
                             <div class="flex gap-4">
                                 <div class="w-1/3">
                                     <label class="block text-[10px] text-editor-subtext mb-1">Status Code Esperado</label>
-                                    <input type="number" id="test-assert-status" class="input-field w-full text-xs font-mono" placeholder="200" value="200">
+                                    <input type="text" id="test-assert-status" class="input-field w-full text-xs font-mono" placeholder="200 o 201/200" value="200">
                                 </div>
                                 <div class="w-2/3">
                                     <label class="block text-[10px] text-editor-subtext mb-1">La respuesta debe contener (String)</label>
@@ -875,11 +880,59 @@
                     </div>
                     
                     <div id="test-empty-state" class="flex-1 flex flex-col items-center justify-center p-8 text-center text-editor-subtext">
-                        <div class="text-4xl mb-4 opacity-50">🧪</div>
                         <span class="text-sm font-medium text-editor-text mb-1">No hay ningún test seleccionado</span>
                         <span class="text-xs opacity-70">Selecciona uno del lateral o crea uno nuevo</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ API TEST GENERATOR MODAL ═══════════════════ -->
+    <div id="test-generator-modal" class="fixed inset-0 z-[85] hidden items-center justify-center">
+        <div id="test-generator-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[420px] flex flex-col animate-scale-in overflow-hidden">
+            <div class="px-5 py-4 border-b border-editor-border bg-editor-surface2 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold text-editor-text">Generar tests API</h3>
+                    <p id="test-generator-subtitle" class="text-[10px] text-editor-subtext">Elige qué tests crear para el DocType actual</p>
+                </div>
+                <button id="btn-close-test-generator" class="w-7 h-7 rounded-lg flex items-center justify-center text-editor-subtext hover:text-editor-text hover:bg-editor-surface transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-semibold text-editor-subtext uppercase tracking-wider mb-1">Cantidad máxima</label>
+                    <input id="test-generator-count" type="number" min="1" max="4" value="4" class="input-field w-full text-sm font-mono">
+                    <p class="text-[10px] text-editor-subtext mt-1">Se crearán como máximo estos tests, respetando el orden seleccionado.</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-editor-subtext uppercase tracking-wider mb-2">Métodos</label>
+                    <div class="space-y-2">
+                        <label class="test-generator-option">
+                            <input type="checkbox" data-test-method="GET" checked>
+                            <span>GET</span>
+                        </label>
+                        <label class="test-generator-option">
+                            <input type="checkbox" data-test-method="POST">
+                            <span>POST</span>
+                        </label>
+                        <label class="test-generator-option">
+                            <input type="checkbox" data-test-method="PUT">
+                            <span>PUT</span>
+                        </label>
+                        <label class="test-generator-option">
+                            <input type="checkbox" data-test-method="DELETE">
+                            <span>DELETE</span>
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-editor-subtext mt-2">DELETE se crea como plantilla con docname de ejemplo para evitar borrados accidentales.</p>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-editor-border bg-editor-surface2 flex justify-end gap-3">
+                <button id="btn-cancel-test-generator" class="px-4 py-2 rounded-lg text-xs font-medium text-editor-text hover:bg-editor-surface transition-colors border border-transparent hover:border-editor-border">Cancelar</button>
+                <button id="btn-confirm-test-generator" class="px-4 py-2 rounded-lg text-xs font-bold bg-editor-green text-editor-bg hover:brightness-110 active:scale-95 transition-all shadow">Crear tests</button>
             </div>
         </div>
     </div>
@@ -1106,6 +1159,6 @@
     </div>
 
     <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
-    <script src="app.js?v=17"></script>
+    <script src="app.js?v=32"></script>
 </body>
 </html>

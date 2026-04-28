@@ -12,11 +12,26 @@ A powerful and intelligent **Single Page Application (SPA)** designed to interac
 1. **Smart Permission Scanner**: Even if your server blocks direct API Schema queries for regular users, the application utilizes a brute-force scanner based on UI Workspaces and a comprehensive ERPNext dictionary to precisely extract only the DocTypes you have explicit read permissions for—100% automatic and "Admin-Free".
 2. **Deep Schema Inspection**: Explore mandatory fields, hidden properties, and Select/Link options of any core or custom document directly, without relying on the official Frappe desk frontend.
 3. **Schema Diff Visualizer**: Take local "Snapshots" of a DocType's current structure. Modify your server (or switch to a DEV environment) and easily spot added, modified, or removed fields visually using the integrated Diffing tool.
-4. **Automated API Test Runner**: Build your own suite of manual tests (GET, POST, PUT, DELETE) against the Frappe API, verify results with a single click, and seamlessly ensure mandatory field payloads are accepted.
-5. **JSON Payload Generator**: Instant "Copy Payload" button that generates the exact mandatory data structure, ready to be pasted into Postman, Bruno, or external integration backends.
-6. **Local Webhook Listener**: The application features a dedicated NodeJS proxy scanner listening at `localhost:3000/api/webhook-listener`. Configure Frappe to send events to this endpoint and instantly debug incoming payloads in real-time through the Webhooks UI.
-7. **Light / Dark Theme**: Eye-friendly development interface with a 🌛 / 🌞 toggle.
-8. **Global Search (Ctrl+K / Cmd+K)**: Instantly search and access any locally cached DocType property via a VS Code style omnibar.
+4. **Schema Exporter**: Download the selected DocType schema as CSV, JSON, or Markdown, including labels, fieldnames, fieldtypes, options, requirements, visibility rules, dependencies, fetch mappings, and descriptions.
+5. **Configurable API Test Generator**: Generate starter tests for the current DocType by choosing how many tests to create and which methods to include (`GET`, `POST`, `PUT`, `DELETE`). Generated tests are saved locally and never duplicated by name.
+6. **Automated API Test Runner**: Build your own suite of manual tests against the Frappe API, verify status codes including multi-status expectations such as `201/200`, and inspect the response body directly from the execution log.
+7. **JSON Payload Generator**: Instant "Copy Payload" button that generates the exact mandatory data structure, ready to be pasted into Postman, Bruno, or external integration backends.
+8. **Local Webhook Listener**: The application features a dedicated NodeJS proxy scanner listening at `localhost:3000/api/webhook-listener`. Configure Frappe to send events to this endpoint and instantly debug incoming payloads in real-time through the Webhooks UI.
+9. **Light / Dark Theme**: Eye-friendly development interface with a smooth transition between light and dark themes.
+10. **Global Search (Ctrl+K / Cmd+K)**: Instantly search and access any locally cached DocType property via a VS Code style omnibar.
+
+## Recent Improvements
+
+- Added `Export Schema` actions for CSV, JSON, and Markdown downloads using the current DocType fields.
+- Added a reusable browser download helper used by schema exports and record CSV export.
+- Added a configurable API test generator with method selection and safe `DELETE` templates.
+- Added API test response previews so successful `GET` requests show the returned Frappe payload in the run log.
+- Improved API test assertions to support multiple valid status codes, for example `201/200`.
+- Refined the dashboard copy and removed AI-looking gradients in favor of a flatter, more minimal interface.
+- Improved light/dark theme switching with smoother browser view transitions.
+- Improved responsive behavior for smaller laptop screens, including compact header actions and horizontal schema table scrolling.
+- Fixed contrast issues in the Create Document modal for field labels, fieldnames, and field type badges.
+- Cleaned up visible emojis from test and header controls for a more professional UI.
 
 ## ⚙️ Technologies
 

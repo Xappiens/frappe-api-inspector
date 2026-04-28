@@ -46,6 +46,9 @@
         fieldCountBadge: id('field-count-badge'),
         inputSearchFields:$('#input-search-fields'),
         btnGeneratePayload:$('#btn-generate-payload'),
+        btnExportSchema: $('#btn-export-schema'),
+        schemaExportMenu: $('#schema-export-menu'),
+        btnGenerateApiTests: $('#btn-generate-api-tests'),
         btnCreateDoc:    $('#btn-create-doc'),
         welcomeState:    $('#welcome-state'),
         
@@ -166,6 +169,7 @@
         createSubtitle:   $('#create-modal-subtitle'),
         btnSubmitDoc:     $('#btn-submit-doc'),
         submitDocText:    $('#submit-doc-text'),
+        btnFillTestData:  $('#btn-fill-test-data'),
         btnCloseCreate:   $('#btn-close-create-modal'),
         createResponsePanel: $('#create-response-panel'),
         createResponseStatus:$('#create-response-status'),
@@ -188,10 +192,20 @@
 
         // API Test Suite
         btnOpenTests:    $('#btn-open-tests'),
+        btnOpenDashboard: $('#btn-open-dashboard'),
+        btnOpenConsole:  $('#btn-open-console'),
         testsModal:      $('#tests-modal'),
         testsBackdrop:   $('#tests-modal-backdrop'),
         btnCloseTestsModal: $('#btn-close-tests-modal'),
         btnRunAllTests:  $('#btn-run-all-tests'),
+        btnOpenTestGenerator: $('#btn-open-test-generator'),
+        testGeneratorModal: $('#test-generator-modal'),
+        testGeneratorBackdrop: $('#test-generator-backdrop'),
+        btnCloseTestGenerator: $('#btn-close-test-generator'),
+        btnCancelTestGenerator: $('#btn-cancel-test-generator'),
+        btnConfirmTestGenerator: $('#btn-confirm-test-generator'),
+        testGeneratorSubtitle: $('#test-generator-subtitle'),
+        testGeneratorCount: $('#test-generator-count'),
         btnNewTest:      $('#btn-new-test'),
         testsList:       $('#tests-list'),
         testConfigurator:$('#test-configurator'),
@@ -264,6 +278,11 @@
         currentInspectorTab: 'fields',
         currentPerms: [],
         selectedUploadFile: null,
+        fieldsRenderToken: 0,
+        permsRequestToken: 0,
+        consoleModalEl: null,
+        dashboardModalEl: null,
+        randomLinkCache: {},
     };
 
     // ── LocalStorage Keys ─────────────────────────────
@@ -313,8 +332,22 @@
     function toggleTheme() {
         const isDark = document.documentElement.classList.contains('dark');
         const newTheme = isDark ? 'light' : 'dark';
-        applyTheme(newTheme);
-        localStorage.setItem(THEME_KEY, newTheme);
+        const commitThemeChange = () => {
+            applyTheme(newTheme);
+            localStorage.setItem(THEME_KEY, newTheme);
+        };
+
+        if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.startViewTransition(commitThemeChange);
+            return;
+        }
+
+        document.documentElement.classList.add('theme-switching');
+        commitThemeChange();
+        window.clearTimeout(state.themeTransitionTimer);
+        state.themeTransitionTimer = window.setTimeout(() => {
+            document.documentElement.classList.remove('theme-switching');
+        }, 220);
     }
 
     function applyTheme(theme) {
@@ -440,10 +473,14 @@
         safeBind(dom.searchInput, 'keydown', handleGlobalSearchKeys);
 
         safeBind(dom.btnGeneratePayload, 'click', openPayloadModal);
+        safeBind(dom.btnExportSchema, 'click', toggleSchemaExportMenu);
+        safeBind(dom.schemaExportMenu, 'click', handleSchemaExportMenuClick);
+        safeBind(dom.btnGenerateApiTests, 'click', openTestGeneratorModal);
         safeBind(dom.btnCreateDoc, 'click', openCreateModal);
         safeBind(dom.btnCloseCreate, 'click', closeCreateModal);
         safeBind(dom.createBackdrop, 'click', closeCreateModal);
         safeBind(dom.btnSubmitDoc, 'click', submitNewDoc);
+        safeBind(dom.btnFillTestData, 'click', fillCreateFormWithTestData);
 
         safeBind(dom.btnViewRecords, 'click', openRecordsModal);
         safeBind(dom.btnCloseRecords, 'click', closeRecordsModal);
@@ -479,8 +516,15 @@
         safeBind(dom.schemaDiffBackdrop, 'click', closeSchemaDiffModal);
 
         safeBind(dom.btnOpenTests, 'click', openTestsModal);
+        safeBind(dom.btnOpenDashboard, 'click', openDashboard);
+        safeBind(dom.btnOpenConsole, 'click', openConsole);
         safeBind(dom.btnCloseTestsModal, 'click', closeTestsModal);
         safeBind(dom.testsBackdrop, 'click', closeTestsModal);
+        safeBind(dom.btnOpenTestGenerator, 'click', openTestGeneratorModal);
+        safeBind(dom.testGeneratorBackdrop, 'click', closeTestGeneratorModal);
+        safeBind(dom.btnCloseTestGenerator, 'click', closeTestGeneratorModal);
+        safeBind(dom.btnCancelTestGenerator, 'click', closeTestGeneratorModal);
+        safeBind(dom.btnConfirmTestGenerator, 'click', confirmTestGenerator);
         safeBind(dom.btnNewTest, 'click', createNewTest);
         safeBind(dom.btnSaveTest, 'click', saveCurrentTest);
         safeBind(dom.btnRunAllTests, 'click', runAllTests);
@@ -527,8 +571,16 @@
 
         safeBind(dom.btnCopyPayload, 'click', copyPayload);
 
+        document.addEventListener('click', (e) => {
+            if (dom.schemaExportMenu && dom.btnExportSchema && !dom.schemaExportMenu.contains(e.target) && !dom.btnExportSchema.contains(e.target)) {
+                dom.schemaExportMenu.classList.add('hidden');
+            }
+        });
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                dom.schemaExportMenu?.classList.add('hidden');
+                closeTestGeneratorModal();
                 closePayloadModal();
                 closeCreateModal();
                 closeRecordsModal();
@@ -909,29 +961,20 @@
 
     // ── Inspector Tabs & Permissions ──────────────────
     function switchInspectorTab(tab) {
-        state.currentInspectorTab = tab;
+        if (!dom.fieldsContainer) return;
+        state.currentInspectorTab = 'fields';
         
-        dom.tabInspectorFields.className = 'py-2 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors flex items-center gap-1.5';
-        dom.tabInspectorPerms.className = 'py-2 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors flex items-center gap-1.5';
-        
-        dom.fieldsContainer.classList.add('hidden');
-        dom.permissionsContainer.classList.add('hidden');
-        
-        if (tab === 'fields') {
+        if (dom.tabInspectorFields) {
             dom.tabInspectorFields.className = 'py-2 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors flex items-center gap-1.5';
-            dom.fieldsContainer.classList.remove('hidden');
-        } else if (tab === 'perms') {
-            dom.tabInspectorPerms.className = 'py-2 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors flex items-center gap-1.5';
-            dom.permissionsContainer.classList.remove('hidden');
-            
-            if (state.currentPerms.length === 0 && state.currentDocType) {
-                fetchDocPerms(state.currentDocType);
-            }
         }
+        
+        dom.permissionsContainer?.classList.add('hidden');
+        dom.fieldsContainer.classList.remove('hidden');
     }
 
     async function fetchDocPerms(docType) {
         if (!state.connected) return;
+        const requestToken = ++state.permsRequestToken;
         
         dom.permissionsTbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-editor-subtext"><div class="loader mx-auto mb-2"></div>Cargando Permisos...</td></tr>';
         
@@ -943,6 +986,7 @@
             const res = await apiFetch(url);
             
             const data = await res.json();
+            if (requestToken !== state.permsRequestToken || state.currentDocType !== docType) return;
             state.currentPerms = data.data || [];
             
             if (state.currentPerms.length === 0) {
@@ -952,6 +996,7 @@
             
             renderPermissionsTable(state.currentPerms);
         } catch (err) {
+            if (requestToken !== state.permsRequestToken || state.currentDocType !== docType) return;
             let errorMsg = err.message;
             if (err.message.includes('403') || (err.response && err.response.status === 403)) {
                 errorMsg = "No tienes privilegios de Administrador (System Manager) para auditar los Roles de Seguridad general.";
@@ -1006,19 +1051,25 @@
             el.classList.toggle('active', el.dataset.name === name);
         });
 
-        dom.welcomeState.classList.add('hidden');
-        dom.fieldsContainer.classList.add('hidden');
-        dom.permissionsContainer.classList.add('hidden');
-        dom.inspectorTabsContainer.classList.add('hidden');
-        dom.loadingState.classList.remove('hidden');
-        dom.loadingState.classList.add('flex');
+        dom.welcomeState?.classList.add('hidden');
+        dom.fieldsContainer?.classList.add('hidden');
+        dom.permissionsContainer?.classList.add('hidden');
+        dom.inspectorTabsContainer?.classList.add('hidden');
+        dom.loadingState?.classList.remove('hidden');
+        dom.loadingState?.classList.add('flex');
 
         try {
-            dom.inspectorTitle.textContent = name;
-            dom.inspectorTitle.classList.remove('text-editor-subtext');
-            dom.inspectorTitle.classList.add('text-editor-text');
-            dom.fieldCountBadge.classList.add('hidden');
-            dom.inspectorActions.classList.add('hidden');
+            if (dom.inspectorTitle) {
+                dom.inspectorTitle.textContent = name;
+                dom.inspectorTitle.classList.remove('text-editor-subtext');
+                dom.inspectorTitle.classList.add('text-editor-text');
+            }
+            if (dom.fieldCountBadge) {
+                dom.fieldCountBadge.textContent = '';
+                dom.fieldCountBadge.dataset.hasValue = 'false';
+                dom.fieldCountBadge.classList.add('hidden');
+            }
+            dom.inspectorActions?.classList.add('hidden');
 
             let res = await apiFetch(`/api/method/frappe.desk.form.load.getdoctype?doctype=${encodeURIComponent(name)}`);
             let data = null;
@@ -1044,11 +1095,16 @@
             renderFieldsTable(fields);
 
             const dataFields = fields.filter(f => !isMeta(f.fieldtype));
-            dom.fieldCountBadge.textContent = `${dataFields.length} campos`;
-            dom.fieldCountBadge.classList.remove('hidden');
-            dom.inspectorActions.classList.remove('hidden');
-            dom.inspectorActions.style.display = 'flex';
-            dom.inspectorTabsContainer.classList.remove('hidden');
+            if (dom.fieldCountBadge) {
+                dom.fieldCountBadge.textContent = `${dataFields.length} campos`;
+                dom.fieldCountBadge.dataset.hasValue = 'true';
+                dom.fieldCountBadge.classList.remove('hidden');
+            }
+            if (dom.inspectorActions) {
+                dom.inspectorActions.classList.remove('hidden');
+                dom.inspectorActions.style.display = 'flex';
+            }
+            dom.inspectorTabsContainer?.classList.remove('hidden');
             switchInspectorTab('fields');
 
             updateSnapshotUI();
@@ -1057,42 +1113,30 @@
             const msg = err.response ? await parseFrappeError(err.response, `Error al cargar "${name}"`) : `Error de la App: ${err.message}`;
             showToast(msg, 'error');
         } finally {
-            dom.loadingState.classList.add('hidden');
-            dom.loadingState.classList.remove('flex');
+            dom.loadingState?.classList.add('hidden');
+            dom.loadingState?.classList.remove('flex');
         }
     }
 
     function renderFieldsTable(fields, filterQuery = '') {
-        dom.fieldsTbody.innerHTML = '';
+        const renderToken = ++state.fieldsRenderToken;
+        dom.fieldsTbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-editor-subtext"><div class="loader mx-auto mb-2"></div>Renderizando campos...</td></tr>';
         dom.fieldsContainer.classList.remove('hidden');
 
         const query = filterQuery.toLowerCase();
-        let idx = 0;
+        const rows = [];
+        let visualIndex = 0;
 
-        const fragment = document.createDocumentFragment();
         fields.forEach(field => {
             const ft = (field.fieldtype || '').toLowerCase();
 
             if (ft === 'section break' || ft === 'tab break') {
-                const tr = document.createElement('tr');
-                tr.className = 'field-row section-break';
-                const label = field.label || (ft === 'tab break' ? '── Tab ──' : '── Section ──');
-                tr.innerHTML = `<td colspan="7">
-                    <span class="flex items-center gap-2">
-                        <span class="flex-1 h-px bg-editor-border"></span>
-                        <span>${escapeHtml(label)}</span>
-                        <span class="flex-1 h-px bg-editor-border"></span>
-                    </span>
-                </td>`;
-                fragment.appendChild(tr);
+                rows.push({ kind: 'section', field, ft });
                 return;
             }
 
             if (ft === 'column break') {
-                const tr = document.createElement('tr');
-                tr.className = 'field-row column-break';
-                tr.innerHTML = `<td colspan="6" class="text-center">┆ columna ┆</td>`;
-                fragment.appendChild(tr);
+                rows.push({ kind: 'column' });
                 return;
             }
 
@@ -1101,60 +1145,105 @@
                 if (!searchable.includes(query)) return;
             }
 
-            idx++;
-            const tr = document.createElement('tr');
-            tr.className = 'field-row animate-fade-in';
-            if (ft === 'link' || ft === 'table' || ft === 'table multiselect') tr.classList.add('is-link');
-            tr.style.animationDelay = `${Math.min(idx * 10, 200)}ms`;
-
-            const badgeClass = getFieldBadgeClass(field.fieldtype);
-            const required = field.reqd === 1;
-
-            let logicHtml = '<span class="text-editor-subtext">—</span>';
-            if (field.fetch_from) {
-                logicHtml = `
-                    <div class="logic-badge badge-fetch" title="Fetch From: ${escapeHtml(field.fetch_from)}">
-                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                        <span class="logic-text truncate max-w-[120px]">${escapeHtml(field.fetch_from)}</span>
-                    </div>
-                `;
-            } else if (field.depends_on) {
-                logicHtml = `
-                    <div class="logic-badge badge-depends" title="Depends On: ${escapeHtml(field.depends_on)}">
-                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span class="logic-text truncate max-w-[120px]">Depends</span>
-                    </div>
-                `;
-            }
-
-            tr.innerHTML = `
-                <td class="text-xs text-editor-subtext font-mono text-center">${idx}</td>
-                <td class="text-xs text-editor-text">${escapeHtml(field.label || '—')}</td>
-                <td class="fieldname-cell" data-fieldname="${escapeHtml(field.fieldname || '')}">${escapeHtml(field.fieldname || '—')}</td>
-                <td><span class="fieldtype-badge ${badgeClass}">${escapeHtml(field.fieldtype || '—')}</span></td>
-                <td class="text-center">${required
-                    ? '<span class="required-yes">✓</span>'
-                    : '<span class="required-no">·</span>'
-                }</td>
-                <td class="logic-cell">${logicHtml}</td>
-                <td class="options-cell" title="${escapeHtml(field.options || '')}">${formatOptions(field)}</td>
-            `;
-
-            const fnCell = tr.querySelector('.fieldname-cell');
-            fnCell.addEventListener('click', () => {
-                copyToClipboard(field.fieldname);
-                fnCell.classList.add('copied');
-                setTimeout(() => fnCell.classList.remove('copied'), 1200);
-            });
-
-            fragment.appendChild(tr);
+            visualIndex++;
+            rows.push({ kind: 'data', field, ft, visualIndex });
         });
 
-        dom.fieldsTbody.appendChild(fragment);
+        dom.fieldsTbody.innerHTML = '';
+        if (rows.length === 0) {
+            dom.fieldsTbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-editor-subtext">No hay campos para mostrar con ese filtro.</td></tr>';
+            return;
+        }
+
+        const CHUNK_SIZE = rows.length > 350 ? 40 : 120;
+        const animationsEnabled = rows.length <= 140;
+        let cursor = 0;
+
+        const appendChunk = () => {
+            if (renderToken !== state.fieldsRenderToken) return;
+
+            const fragment = document.createDocumentFragment();
+            const limit = Math.min(cursor + CHUNK_SIZE, rows.length);
+
+            for (; cursor < limit; cursor++) {
+                const row = rows[cursor];
+                let tr = null;
+
+                if (row.kind === 'section') {
+                    tr = document.createElement('tr');
+                    tr.className = 'field-row section-break';
+                    const label = row.field.label || (row.ft === 'tab break' ? '── Tab ──' : '── Section ──');
+                    tr.innerHTML = `<td colspan="7">
+                        <span class="flex items-center gap-2">
+                            <span class="flex-1 h-px bg-editor-border"></span>
+                            <span>${escapeHtml(label)}</span>
+                            <span class="flex-1 h-px bg-editor-border"></span>
+                        </span>
+                    </td>`;
+                } else if (row.kind === 'column') {
+                    tr = document.createElement('tr');
+                    tr.className = 'field-row column-break';
+                    tr.innerHTML = '<td colspan="6" class="text-center">┆ columna ┆</td>';
+                } else {
+                    const field = row.field;
+                    tr = document.createElement('tr');
+                    tr.className = `field-row${animationsEnabled ? ' animate-fade-in' : ''}`;
+                    if (row.ft === 'link' || row.ft === 'table' || row.ft === 'table multiselect') tr.classList.add('is-link');
+                    if (animationsEnabled) tr.style.animationDelay = `${Math.min(row.visualIndex * 10, 200)}ms`;
+
+                    const badgeClass = getFieldBadgeClass(field.fieldtype);
+                    const required = field.reqd === 1;
+
+                    let logicHtml = '<span class="text-editor-subtext">—</span>';
+                    if (field.fetch_from) {
+                        logicHtml = `
+                            <div class="logic-badge badge-fetch" title="Fetch From: ${escapeHtml(field.fetch_from)}">
+                                <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                                <span class="logic-text truncate max-w-[120px]">${escapeHtml(field.fetch_from)}</span>
+                            </div>
+                        `;
+                    } else if (field.depends_on) {
+                        logicHtml = `
+                            <div class="logic-badge badge-depends" title="Depends On: ${escapeHtml(field.depends_on)}">
+                                <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="logic-text truncate max-w-[120px]">Depends</span>
+                            </div>
+                        `;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="text-xs text-editor-subtext font-mono text-center">${row.visualIndex}</td>
+                        <td class="text-xs text-editor-text">${escapeHtml(field.label || '—')}</td>
+                        <td class="fieldname-cell" data-fieldname="${escapeHtml(field.fieldname || '')}">${escapeHtml(field.fieldname || '—')}</td>
+                        <td><span class="fieldtype-badge ${badgeClass}">${escapeHtml(field.fieldtype || '—')}</span></td>
+                        <td class="text-center">${required
+                            ? '<span class="required-yes">✓</span>'
+                            : '<span class="required-no">·</span>'
+                        }</td>
+                        <td class="logic-cell">${logicHtml}</td>
+                        <td class="options-cell" title="${escapeHtml(field.options || '')}">${formatOptions(field)}</td>
+                    `;
+
+                    const fnCell = tr.querySelector('.fieldname-cell');
+                    fnCell?.addEventListener('click', () => {
+                        copyToClipboard(field.fieldname);
+                        fnCell.classList.add('copied');
+                        setTimeout(() => fnCell.classList.remove('copied'), 1200);
+                    });
+                }
+
+                fragment.appendChild(tr);
+            }
+
+            dom.fieldsTbody.appendChild(fragment);
+            if (cursor < rows.length) requestAnimationFrame(appendChunk);
+        };
+
+        requestAnimationFrame(appendChunk);
     }
 
     // ── Schema Snapshots ──────────────────────────────────────
@@ -1418,14 +1507,14 @@
             };
 
             let html = `
-                <div class="flex gap-4 mb-2">
-                    <div class="px-3 py-1 bg-editor-orange border border-editor-orange rounded text-[10px] font-bold text-white">
+                <div class="relationship-stat-row">
+                    <div class="relationship-stat-pill is-inbound">
                         ${graph.stats.in} REFERENCIAS ENTRANTES
                     </div>
-                    <div class="px-3 py-1 bg-editor-blue border border-editor-blue rounded text-[10px] font-bold text-white">
+                    <div class="relationship-stat-pill is-outbound">
                         ${graph.stats.out - graph.stats.tables} ENLACES DIRECTOS
                     </div>
-                    <div class="px-3 py-1 bg-editor-teal border border-editor-teal rounded text-[10px] font-bold text-white">
+                    <div class="relationship-stat-pill is-table">
                         ${graph.stats.tables} TABLAS HIJAS
                     </div>
                 </div>
@@ -1457,7 +1546,7 @@
                                             </td>
                                             <td class="py-2 px-4 font-mono text-editor-subtext">${item.fieldname}</td>
                                             <td class="py-2 px-4">
-                                                <span class="px-1.5 py-0.5 rounded text-[10px] border border-editor-border text-editor-subtext bg-editor-surface2">${item.fieldType}</span>
+                                                <span class="relationship-type-pill">${item.fieldType}</span>
                                             </td>
                                         </tr>
                                     `;
@@ -1487,6 +1576,94 @@
     function filterFields() {
         const query = dom.inputSearchFields.value.trim();
         renderFieldsTable(state.currentFields, query);
+    }
+
+    function toggleSchemaExportMenu() {
+        if (!state.currentDocType || !state.currentFields.length) {
+            showToast('Selecciona un DocType antes de exportar el esquema.', 'info');
+            return;
+        }
+        dom.schemaExportMenu?.classList.toggle('hidden');
+    }
+
+    function handleSchemaExportMenuClick(e) {
+        const button = e.target.closest('[data-schema-export-format]');
+        if (!button) return;
+
+        dom.schemaExportMenu?.classList.add('hidden');
+        exportCurrentSchema(button.dataset.schemaExportFormat);
+    }
+
+    function getSchemaExportRows() {
+        const columns = ['label', 'fieldname', 'fieldtype', 'options', 'reqd', 'read_only', 'hidden', 'depends_on', 'fetch_from', 'description'];
+        return state.currentFields.map(field => {
+            const row = {};
+            columns.forEach(column => {
+                row[column] = field[column] ?? '';
+            });
+            return row;
+        });
+    }
+
+    function exportCurrentSchema(format) {
+        if (!state.currentDocType || !state.currentFields.length) {
+            showToast('Selecciona un DocType antes de exportar el esquema.', 'info');
+            return;
+        }
+
+        const rows = getSchemaExportRows();
+        const safeName = getSafeFileBaseName(state.currentDocType);
+        const columns = Object.keys(rows[0] || {});
+        let content = '';
+        let mime = 'text/plain;charset=utf-8';
+        let extension = format;
+
+        if (format === 'csv') {
+            content = rowsToCSV(rows, columns);
+            mime = 'text/csv;charset=utf-8';
+        } else if (format === 'json') {
+            content = JSON.stringify({
+                doctype: state.currentDocType,
+                exportedAt: new Date().toISOString(),
+                fields: rows
+            }, null, 2);
+            mime = 'application/json;charset=utf-8';
+        } else if (format === 'md') {
+            content = rowsToMarkdown(rows, columns);
+            mime = 'text/markdown;charset=utf-8';
+            extension = 'md';
+        } else {
+            showToast('Formato de exportación no soportado.', 'error');
+            return;
+        }
+
+        downloadFile(`${safeName}-schema.${extension}`, content, mime);
+        showToast(`Esquema exportado en ${extension.toUpperCase()}`, 'success');
+    }
+
+    function rowsToCSV(rows, columns) {
+        return [
+            columns.map(escapeCsvCell).join(','),
+            ...rows.map(row => columns.map(column => escapeCsvCell(row[column])).join(','))
+        ].join('\n');
+    }
+
+    function escapeCsvCell(value) {
+        const raw = value === null || value === undefined ? '' : String(value);
+        if (raw.includes(',') || raw.includes('\n') || raw.includes('"')) {
+            return `"${raw.replace(/"/g, '""')}"`;
+        }
+        return raw;
+    }
+
+    function rowsToMarkdown(rows, columns) {
+        const escapeMarkdownCell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
+        const header = `# ${state.currentDocType} Schema`;
+        const generated = `Exportado: ${new Date().toISOString()}`;
+        const tableHeader = `| ${columns.join(' | ')} |`;
+        const separator = `| ${columns.map(() => '---').join(' | ')} |`;
+        const body = rows.map(row => `| ${columns.map(column => escapeMarkdownCell(row[column])).join(' | ')} |`);
+        return [header, '', generated, '', tableHeader, separator, ...body, ''].join('\n');
     }
 
     function generatePayloadString() {
@@ -1739,6 +1916,137 @@
         wrapper.appendChild(input);
 
         return wrapper;
+    }
+
+    async function fillCreateFormWithTestData() {
+        if (state.editingRecord) {
+            showToast('El autorrelleno solo está disponible al crear documentos nuevos.', 'info');
+            return;
+        }
+
+        const inputs = Array.from(dom.createModalBody.querySelectorAll('[data-fieldname]'));
+        if (!inputs.length) return;
+
+        const originalText = dom.btnFillTestData?.textContent;
+        if (dom.btnFillTestData) {
+            dom.btnFillTestData.disabled = true;
+            dom.btnFillTestData.textContent = 'Generando...';
+        }
+
+        try {
+            let filledCount = 0;
+            for (const input of inputs) {
+                const field = state.currentFields.find(f => f.fieldname === input.dataset.fieldname);
+                if (!field) continue;
+
+                const value = await getTestValueForField(field, inputs);
+                applyTestValueToInput(input, value);
+                input.classList.remove('create-input-error');
+                filledCount++;
+            }
+            showToast(`Formulario rellenado: ${filledCount} campos con datos de prueba.`, 'success');
+        } catch (err) {
+            showToast(`No se pudo autorrellenar todo: ${err.message}`, 'error');
+        } finally {
+            if (dom.btnFillTestData) {
+                dom.btnFillTestData.disabled = false;
+                dom.btnFillTestData.textContent = originalText || '🧪 Rellenar prueba';
+            }
+        }
+    }
+
+    async function getTestValueForField(field, inputs = []) {
+        const ft = (field.fieldtype || '').toLowerCase();
+        const name = (field.fieldname || '').toLowerCase();
+        const label = (field.label || '').toLowerCase();
+        const key = `${name} ${label}`;
+        const stamp = Date.now().toString(36).slice(-5).toUpperCase();
+
+        if (ft === 'check') return 1;
+        if (ft === 'int') return key.includes('year') || key.includes('año') ? new Date().getFullYear() : Math.floor(Math.random() * 90) + 10;
+        if (ft === 'float' || ft === 'currency') return Number((Math.random() * 900 + 100).toFixed(2));
+        if (ft === 'percent') return Math.floor(Math.random() * 100);
+        if (ft === 'date') return new Date().toISOString().slice(0, 10);
+        if (ft === 'datetime') return new Date().toISOString().slice(0, 16);
+        if (ft === 'time') return new Date().toTimeString().slice(0, 5);
+        if (ft === 'select') return getFirstSelectOption(field);
+        if (ft === 'link' && field.options) return await getSampleLinkValue(field.options);
+        if (ft === 'dynamic link') return await getDynamicLinkTestValue(field, inputs);
+        if (ft === 'table' || ft === 'table multiselect') return [getChildTableTestRow(field)];
+        if (ft === 'attach' || ft === 'attach image') return `/files/test-${stamp.toLowerCase()}.txt`;
+        if (ft === 'text editor' || ft === 'html editor') return `<p>Prueba automática ${stamp}</p>`;
+        if (ft === 'markdown editor') return `## Prueba automática ${stamp}\n\nContenido generado para validar el POST.`;
+        if (ft === 'code') return JSON.stringify({ test: true, ref: stamp }, null, 2);
+        if (ft === 'text' || ft === 'small text' || ft === 'long text') return `Texto de prueba ${stamp}`;
+
+        if (key.includes('email') || key.includes('correo')) return `test.${stamp.toLowerCase()}@example.com`;
+        if (key.includes('phone') || key.includes('telefono') || key.includes('teléfono') || key.includes('mobile')) return '+34600000000';
+        if (key.includes('url') || key.includes('web')) return 'https://example.com';
+        if (key.includes('name') || key.includes('nombre') || key.includes('title') || key.includes('titulo')) return `Prueba ${state.currentDocType || 'Doc'} ${stamp}`;
+        if (key.includes('code') || key.includes('codigo') || key.includes('código')) return `TEST-${stamp}`;
+
+        return `Valor prueba ${stamp}`;
+    }
+
+    function getFirstSelectOption(field) {
+        const options = (field.options || '').split('\n').map(o => o.trim()).filter(Boolean);
+        return options[0] || '';
+    }
+
+    async function getSampleLinkValue(docType) {
+        if (state.randomLinkCache[docType]) return state.randomLinkCache[docType];
+
+        try {
+            const res = await apiFetch(`/api/resource/${encodeURIComponent(docType)}?fields=${encodeURIComponent(JSON.stringify(['name']))}&limit_page_length=1&order_by=modified%20desc`);
+            const data = await res.json();
+            const value = data.data?.[0]?.name || `TEST-${docType.replace(/\s+/g, '-').toUpperCase()}`;
+            state.randomLinkCache[docType] = value;
+            return value;
+        } catch {
+            return `TEST-${docType.replace(/\s+/g, '-').toUpperCase()}`;
+        }
+    }
+
+    async function getDynamicLinkTestValue(field, inputs) {
+        const targetFieldname = field.options;
+        let targetDocType = '';
+
+        if (targetFieldname) {
+            const targetInput = inputs.find(input => input.dataset.fieldname === targetFieldname);
+            targetDocType = targetInput?.value?.trim() || '';
+
+            if (!targetDocType && targetInput) {
+                targetDocType = state.currentDocType || 'DocType';
+                targetInput.value = targetDocType;
+            }
+        }
+
+        targetDocType = targetDocType || state.currentDocType || 'DocType';
+        return await getSampleLinkValue(targetDocType);
+    }
+
+    function getChildTableTestRow(field) {
+        return {
+            doctype: field.options || undefined,
+            idx: 1,
+            description: 'Fila de prueba automática',
+            qty: 1,
+            amount: 1,
+        };
+    }
+
+    function applyTestValueToInput(input, value) {
+        if (input.dataset.fieldtype === 'check') {
+            input.checked = Boolean(value);
+            return;
+        }
+
+        if (input.dataset.isJson) {
+            input.value = JSON.stringify(value ?? [], null, 2);
+            return;
+        }
+
+        input.value = value ?? '';
     }
 
     async function submitNewDoc() {
@@ -2375,38 +2683,8 @@
         state.currentRecords.forEach(record => Object.keys(record).forEach(k => allKeys.add(k)));
         const headers = Array.from(allKeys).sort();
 
-        const csvRows = [];
-        csvRows.push(headers.join(','));
-
-        for (const row of state.currentRecords) {
-            const values = headers.map(header => {
-                let cellValue = row[header];
-                if (cellValue === null || cellValue === undefined) {
-                    cellValue = '';
-                } else {
-                    cellValue = cellValue.toString();
-                }
-
-                if (cellValue.includes(',') || cellValue.includes('\n') || cellValue.includes('"')) {
-                    cellValue = `"${cellValue.replace(/"/g, '""')}"`;
-                }
-                return cellValue;
-            });
-            csvRows.push(values.join(','));
-        }
-
-        const csvContent = csvRows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${state.currentDocType.replace(/\s+/g, '_')}_export.csv`);
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const csvContent = rowsToCSV(state.currentRecords, headers);
+        downloadFile(`${getSafeFileBaseName(state.currentDocType)}_export.csv`, csvContent, 'text/csv;charset=utf-8;');
         
         showToast('Exportación CSV iniciada', 'success');
     }
@@ -2712,6 +2990,223 @@
         localStorage.setItem('fapi_api_tests', JSON.stringify(state.apiTests));
     }
 
+    function openTestGeneratorModal() {
+        if (!state.currentDocType || !state.currentFields.length) {
+            showToast('Selecciona un DocType antes de generar tests API.', 'info');
+            return;
+        }
+
+        if (dom.testGeneratorSubtitle) {
+            dom.testGeneratorSubtitle.textContent = `${state.currentDocType} · elige cantidad y tipo de tests`;
+        }
+        if (dom.testGeneratorCount) {
+            dom.testGeneratorCount.value = '4';
+        }
+        dom.testGeneratorModal?.querySelectorAll('[data-test-method]').forEach(input => {
+            input.checked = input.dataset.testMethod === 'GET';
+        });
+        showModal(dom.testGeneratorModal);
+    }
+
+    function closeTestGeneratorModal() {
+        hideModal(dom.testGeneratorModal);
+    }
+
+    async function confirmTestGenerator() {
+        const selectedMethods = Array.from(dom.testGeneratorModal?.querySelectorAll('[data-test-method]:checked') || [])
+            .map(input => input.dataset.testMethod);
+        const maxTests = Math.max(1, Math.min(4, parseInt(dom.testGeneratorCount?.value || '4', 10) || 4));
+
+        if (selectedMethods.length === 0) {
+            showToast('Selecciona al menos un método.', 'info');
+            return;
+        }
+
+        if (dom.btnConfirmTestGenerator) {
+            dom.btnConfirmTestGenerator.disabled = true;
+            dom.btnConfirmTestGenerator.textContent = 'Creando...';
+        }
+
+        try {
+            await generateApiTestsForCurrentDocType({ selectedMethods, maxTests });
+            closeTestGeneratorModal();
+        } finally {
+            if (dom.btnConfirmTestGenerator) {
+                dom.btnConfirmTestGenerator.disabled = false;
+                dom.btnConfirmTestGenerator.textContent = 'Crear tests';
+            }
+        }
+    }
+
+    async function generateApiTestsForCurrentDocType({ selectedMethods = [], maxTests = 4 } = {}) {
+        if (!state.currentDocType || !state.currentFields.length) {
+            showToast('Selecciona un DocType antes de generar tests API.', 'info');
+            return;
+        }
+
+        const selected = new Set(selectedMethods);
+        const docType = state.currentDocType;
+        const encodedDocType = encodeURIComponent(docType);
+        const candidates = [];
+        let firstRecordName = '';
+
+        if (selected.has('GET')) {
+            candidates.push({
+                name: `${docType} - GET prueba`,
+                method: 'GET',
+                endpoint: `resource/${encodedDocType}?fields=${encodeURIComponent(JSON.stringify(['name']))}&limit_page_length=5`,
+                body: '',
+                assertStatus: '200',
+                assertBody: ''
+            });
+        }
+
+        if (selected.has('POST')) {
+            const postPayload = await buildAutoPostPayloadForTest();
+            if (postPayload) {
+                candidates.push({
+                    name: `${docType} - POST prueba`,
+                    method: 'POST',
+                    endpoint: `resource/${encodedDocType}`,
+                    body: JSON.stringify(postPayload, null, 2),
+                    assertStatus: '201/200',
+                    assertBody: ''
+                });
+            }
+        }
+
+        if (selected.has('PUT')) {
+            firstRecordName = firstRecordName || await fetchFirstRecordNameForTest(docType);
+            const putPayload = await buildAutoPostPayloadForTest();
+            if (firstRecordName && putPayload) {
+                candidates.push({
+                    name: `${docType} - PUT prueba`,
+                    method: 'PUT',
+                    endpoint: `resource/${encodedDocType}/${encodeURIComponent(firstRecordName)}`,
+                    body: JSON.stringify(putPayload, null, 2),
+                    assertStatus: '200',
+                    assertBody: firstRecordName
+                });
+            }
+        }
+
+        if (selected.has('DELETE')) {
+            candidates.push({
+                name: `${docType} - DELETE plantilla`,
+                method: 'DELETE',
+                endpoint: `resource/${encodedDocType}/REEMPLAZA_DOCNAME`,
+                body: '',
+                assertStatus: '200/202',
+                assertBody: ''
+            });
+        }
+
+        const limitedCandidates = candidates.slice(0, maxTests);
+        let created = 0;
+        let firstCreatedId = null;
+        const existingNames = new Set(state.apiTests.map(test => normalizeTestName(test.name)));
+
+        limitedCandidates.forEach(test => {
+            if (existingNames.has(normalizeTestName(test.name))) return;
+
+            const newTest = {
+                id: `test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                ...test
+            };
+            state.apiTests.push(newTest);
+            existingNames.add(normalizeTestName(test.name));
+            firstCreatedId = firstCreatedId || newTest.id;
+            created++;
+        });
+
+        if (created > 0) {
+            saveApiTests();
+            if (firstCreatedId) selectTest(firstCreatedId);
+            renderTestsList();
+        }
+
+        const skipped = limitedCandidates.length - created;
+        const unavailable = selectedMethods.length - candidates.length;
+        if (created === 0 && skipped > 0) {
+            showToast(`No se crearon tests nuevos: ya existían ${skipped}.`, 'info');
+            return;
+        }
+
+        const skippedText = skipped ? ` (${skipped} ya existían)` : '';
+        const unavailableText = unavailable > 0 ? ` ${unavailable} no estaban disponibles.` : '';
+        showToast(`${created} tests API creados${skippedText}.${unavailableText}`, created ? 'success' : 'info');
+    }
+
+    function normalizeTestName(name) {
+        return String(name || '').trim().toLowerCase();
+    }
+
+    function parseExpectedStatuses(value) {
+        const statuses = String(value || '200')
+            .split(/[\/,\s]+/)
+            .map(item => parseInt(item, 10))
+            .filter(Number.isFinite);
+        return statuses.length ? statuses : [200];
+    }
+
+    function renderTestResponsePreview(rawBody) {
+        if (!rawBody) {
+            return '<div class="mt-2 text-[10px] text-editor-subtext italic">Respuesta vacía.</div>';
+        }
+
+        let formatted = rawBody;
+        try {
+            formatted = JSON.stringify(JSON.parse(rawBody), null, 2);
+        } catch {
+            formatted = rawBody;
+        }
+
+        const maxLength = 3000;
+        const truncated = formatted.length > maxLength;
+        const preview = truncated ? `${formatted.slice(0, maxLength)}\n... respuesta truncada ...` : formatted;
+
+        return `
+            <details class="mt-2 rounded border border-editor-border bg-editor-surface2/60">
+                <summary class="cursor-pointer px-2 py-1 text-[10px] font-bold text-editor-text">Ver respuesta</summary>
+                <pre class="p-2 overflow-auto max-h-64 text-[10px] whitespace-pre-wrap break-all text-editor-text">${escapeHtml(preview)}</pre>
+            </details>
+        `;
+    }
+
+    async function fetchFirstRecordNameForTest(docType) {
+        try {
+            const endpoint = `/api/resource/${encodeURIComponent(docType)}?fields=${encodeURIComponent(JSON.stringify(['name']))}&limit_page_length=1&order_by=modified%20desc`;
+            const res = await apiFetch(endpoint);
+            const data = await res.json();
+            return data.data?.[0]?.name || '';
+        } catch {
+            return '';
+        }
+    }
+
+    async function buildAutoPostPayloadForTest() {
+        const unsafeTypes = new Set(['attach', 'attach image', 'table', 'table multiselect', 'dynamic link', 'button']);
+        const systemFields = new Set(['owner', 'creation', 'modified', 'modified_by', 'idx', 'docstatus', 'name', '_user_tags', '_comments', '_assign', '_liked_by']);
+        const writableFields = state.currentFields.filter(field => {
+            const ft = (field.fieldtype || '').toLowerCase();
+            return field.fieldname && !isMeta(ft) && !unsafeTypes.has(ft) && !systemFields.has(field.fieldname) && field.read_only !== 1 && field.hidden !== 1;
+        });
+        const requiredFields = writableFields.filter(field => field.reqd === 1);
+        const optionalFields = writableFields
+            .filter(field => field.reqd !== 1)
+            .filter(field => /name|title|email|code|description|phone|date/i.test(`${field.fieldname || ''} ${field.label || ''}`))
+            .slice(0, Math.max(0, 5 - requiredFields.length));
+        const fieldsForPayload = [...requiredFields, ...optionalFields];
+
+        if (fieldsForPayload.length === 0) return null;
+
+        const payload = {};
+        for (const field of fieldsForPayload) {
+            payload[field.fieldname] = await getTestValueForField(field, []);
+        }
+        return payload;
+    }
+
     async function runAllTests() {
         if (state.apiTests.length === 0) {
             showToast('No hay tests que ejecutar', 'error');
@@ -2760,15 +3255,15 @@
                     textBody = await res.text();
                 } catch(e) {}
                 
-                const expStatus = parseInt(test.assertStatus || '200', 10);
+                const expectedStatuses = parseExpectedStatuses(test.assertStatus || '200');
                 let expectsMet = true;
                 const msgs = [];
                 
-                if (res.status === expStatus) {
-                    msgs.push(`<span class="text-editor-green">✓ Status ${res.status} coincide con el esperado (${expStatus})</span>`);
+                if (expectedStatuses.includes(res.status)) {
+                    msgs.push(`<span class="text-editor-green">✓ Status ${res.status} coincide con el esperado (${expectedStatuses.join('/')})</span>`);
                 } else {
                     expectsMet = false;
-                    msgs.push(`<span class="text-editor-red">✗ Status ${res.status} NO coincide con el esperado (${expStatus})</span>`);
+                    msgs.push(`<span class="text-editor-red">✗ Status ${res.status} NO coincide con el esperado (${expectedStatuses.join('/')})</span>`);
                 }
                 
                 if (test.assertBody) {
@@ -2779,15 +3274,17 @@
                         msgs.push(`<span class="text-editor-red">✗ Body NO contiene validación "${escapeHtml(test.assertBody)}"</span>`);
                     }
                 }
+
+                const responsePreview = renderTestResponsePreview(textBody);
                 
                 if (expectsMet) {
                     isSuccess = true;
                     logEntry.classList.add('border-editor-green');
-                    logEntry.innerHTML += `<div class="mt-1">${msgs.join('<br>')}</div><div class="font-bold text-editor-green mt-1">✅ TEST PASADO (${Date.now() - startTime}ms)</div>`;
+                    logEntry.innerHTML += `<div class="mt-1">${msgs.join('<br>')}</div>${responsePreview}<div class="font-bold text-editor-green mt-1">✅ TEST PASADO (${Date.now() - startTime}ms)</div>`;
                     passed++;
                 } else {
                     logEntry.classList.add('border-editor-red');
-                    logEntry.innerHTML += `<div class="mt-1">${msgs.join('<br>')}</div><div class="font-bold text-editor-red mt-1">❌ TEST FALLIDO (${Date.now() - startTime}ms)</div>`;
+                    logEntry.innerHTML += `<div class="mt-1">${msgs.join('<br>')}</div>${responsePreview}<div class="font-bold text-editor-red mt-1">❌ TEST FALLIDO (${Date.now() - startTime}ms)</div>`;
                     failed++;
                 }
                 
@@ -2823,6 +3320,490 @@
     function closeGlobalSearch() {
         dom.searchModal.classList.add('hidden');
         dom.searchModal.classList.remove('flex');
+    }
+
+    // ── Dashboard & Console ───────────────────────────
+    async function openDashboard() {
+        if (!state.connected) {
+            showToast('Conéctate primero para abrir el dashboard.', 'error');
+            return;
+        }
+
+        const modal = ensureDashboardModal();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        renderDashboardLoading();
+        await refreshDashboard();
+    }
+
+    function ensureDashboardModal() {
+        if (state.dashboardModalEl) return state.dashboardModalEl;
+
+        const modal = document.createElement('div');
+        modal.id = 'dashboard-modal-runtime';
+        modal.className = 'hidden fixed inset-0 z-[210] dashboard-backdrop items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="dashboard-shell w-full max-w-6xl h-[88vh] border border-editor-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div class="dashboard-header px-6 py-4 border-b border-editor-border flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="dashboard-icon w-9 h-9 rounded-xl flex items-center justify-center text-lg">📊</div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-editor-text">Resumen</h3>
+                            <p id="dashboard-subtitle" class="text-[10px] text-editor-subtext truncate">Estado de la conexión y del DocType actual</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button id="btn-refresh-dashboard-runtime" class="dashboard-soft-btn py-1.5 px-3 rounded-lg text-[11px] font-bold border transition-all">Refrescar</button>
+                        <button id="btn-close-dashboard-runtime" class="dashboard-icon-btn w-8 h-8 rounded-lg flex items-center justify-center transition-all">✕</button>
+                    </div>
+                </div>
+                <div id="dashboard-body" class="dashboard-body flex-1 overflow-y-auto custom-scrollbar p-6"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        state.dashboardModalEl = modal;
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeDashboard();
+        });
+        modal.querySelector('#btn-close-dashboard-runtime').addEventListener('click', closeDashboard);
+        modal.querySelector('#btn-refresh-dashboard-runtime').addEventListener('click', refreshDashboard);
+        return modal;
+    }
+
+    function closeDashboard() {
+        if (!state.dashboardModalEl) return;
+        state.dashboardModalEl.classList.add('hidden');
+        state.dashboardModalEl.classList.remove('flex');
+    }
+
+    function renderDashboardLoading() {
+        const body = state.dashboardModalEl?.querySelector('#dashboard-body');
+        if (!body) return;
+        body.innerHTML = `
+            <div class="h-full min-h-[360px] flex flex-col items-center justify-center text-editor-subtext gap-3">
+                <div class="loader-ring"></div>
+                <p class="text-xs font-semibold uppercase tracking-widest">Cargando datos...</p>
+            </div>
+        `;
+    }
+
+    async function refreshDashboard() {
+        if (!state.dashboardModalEl) return;
+
+        const refreshBtn = state.dashboardModalEl.querySelector('#btn-refresh-dashboard-runtime');
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Actualizando...';
+
+        try {
+            const dashboard = await collectDashboardData();
+            renderDashboard(dashboard);
+        } catch (err) {
+            const body = state.dashboardModalEl.querySelector('#dashboard-body');
+            body.innerHTML = `
+                <div class="h-full min-h-[320px] flex flex-col items-center justify-center text-center gap-3">
+                    <div class="text-4xl">⚠️</div>
+                    <h4 class="text-sm font-bold text-editor-text">No se pudo cargar el resumen</h4>
+                    <p class="text-xs text-editor-subtext max-w-md">${escapeHtml(err.message || 'Error desconocido')}</p>
+                </div>
+            `;
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = 'Refrescar';
+        }
+    }
+
+    async function collectDashboardData() {
+        const now = new Date();
+        const recentLogs = state.requestLogs.slice(0, 25);
+        const dashboard = {
+            baseUrl: state.baseUrl,
+            currentDocType: state.currentDocType || null,
+            totalDocTypes: state.allDocTypes.length,
+            loadedFields: state.currentFields.length,
+            dataFields: state.currentFields.filter(f => !isMeta(f.fieldtype)).length,
+            layoutFields: state.currentFields.filter(f => isMeta(f.fieldtype)).length,
+            requiredFields: state.currentFields.filter(f => f.reqd).length,
+            readOnlyFields: state.currentFields.filter(f => f.read_only).length,
+            linkFields: state.currentFields.filter(f => ['link', 'dynamic link'].includes((f.fieldtype || '').toLowerCase())).length,
+            tableFields: state.currentFields.filter(f => ['table', 'table multiselect'].includes((f.fieldtype || '').toLowerCase())).length,
+            savedCollections: state.savedCollections.length,
+            savedSnapshots: Object.keys(state.schemaSnapshots || {}).length,
+            apiTests: state.apiTests.length,
+            requestLogs: state.requestLogs.length,
+            generatedAt: now,
+            serverStatus: 'unknown',
+            serverVersion: null,
+            docCountForCurrentDocType: null,
+            recentRecords: [],
+            lastError: null,
+            successRequests: recentLogs.filter(log => log.status >= 200 && log.status < 300).length,
+            failedRequests: recentLogs.filter(log => log.error || log.status >= 400).length,
+            avgDuration: recentLogs.length
+                ? Math.round(recentLogs.reduce((sum, log) => sum + (Number(log.duration) || 0), 0) / recentLogs.length)
+                : 0,
+        };
+
+        try {
+            const statusRes = await fetch('/api/status');
+            if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                dashboard.serverStatus = statusData.status || 'ok';
+                dashboard.serverVersion = statusData.version || null;
+            } else {
+                dashboard.serverStatus = `http ${statusRes.status}`;
+            }
+        } catch {
+            dashboard.serverStatus = 'unreachable';
+        }
+
+        if (state.currentDocType) {
+            try {
+                const countRes = await apiFetch(`/api/method/frappe.client.get_count?doctype=${encodeURIComponent(state.currentDocType)}`);
+                const countData = await countRes.json();
+                dashboard.docCountForCurrentDocType = countData.message ?? 0;
+            } catch (err) {
+                dashboard.lastError = err.message || 'No se pudo obtener el conteo';
+            }
+
+            try {
+                const fields = encodeURIComponent(JSON.stringify(['name', 'owner', 'modified', 'creation']));
+                const res = await apiFetch(`/api/resource/${encodeURIComponent(state.currentDocType)}?fields=${fields}&limit_page_length=5&order_by=modified%20desc`);
+                const data = await res.json();
+                dashboard.recentRecords = data.data || [];
+            } catch {
+                dashboard.recentRecords = [];
+            }
+        }
+
+        return dashboard;
+    }
+
+    function renderDashboard(dashboard) {
+        const body = state.dashboardModalEl?.querySelector('#dashboard-body');
+        const subtitle = state.dashboardModalEl?.querySelector('#dashboard-subtitle');
+        if (!body) return;
+
+        if (subtitle) {
+            subtitle.textContent = `${dashboard.baseUrl} · ${dashboard.currentDocType || 'sin DocType seleccionado'} · ${dashboard.generatedAt.toLocaleString()}`;
+        }
+
+        const fieldTypes = getFieldTypeStats();
+        const fieldStatsTotal = fieldTypes.reduce((sum, item) => sum + item.count, 0);
+        const recentLogs = state.requestLogs.slice(0, 6);
+        const topFieldRows = fieldTypes.length
+            ? fieldTypes.slice(0, 8).map(item => renderFieldTypeRow(item, fieldStatsTotal)).join('')
+            : '<p class="text-xs text-editor-subtext">Selecciona un DocType para ver sus campos.</p>';
+
+        const recentRecords = dashboard.recentRecords.length
+            ? dashboard.recentRecords.map(record => `
+                <div class="dashboard-list-row flex items-center justify-between gap-3 py-2">
+                    <div class="min-w-0">
+                        <div class="text-xs font-semibold text-editor-text truncate">${escapeHtml(record.name || 'Sin nombre')}</div>
+                        <div class="text-[10px] text-editor-subtext truncate">${escapeHtml(record.owner || 'sin owner')}</div>
+                    </div>
+                    <span class="text-[10px] text-editor-subtext font-mono flex-shrink-0">${escapeHtml(formatDateShort(record.modified || record.creation))}</span>
+                </div>
+            `).join('')
+            : `<div class="text-xs text-editor-subtext py-8 text-center">${dashboard.currentDocType ? 'No hay registros recientes accesibles.' : 'Selecciona un DocType para ver registros recientes.'}</div>`;
+
+        const logRows = recentLogs.length
+            ? recentLogs.map(log => `
+                <div class="dashboard-list-row grid grid-cols-[58px_1fr_56px] gap-2 items-center py-2">
+                    <span class="text-[10px] font-bold ${log.status >= 400 || log.error ? 'text-editor-red' : 'text-editor-green'}">${escapeHtml(String(log.status || 'ERR'))}</span>
+                    <span class="text-[10px] text-editor-subtext font-mono truncate">${escapeHtml(log.method)} ${escapeHtml(log.url)}</span>
+                    <span class="text-[10px] text-editor-subtext text-right">${formatDuration(log.duration)}</span>
+                </div>
+            `).join('')
+            : '<div class="text-xs text-editor-subtext py-8 text-center">Aún no hay peticiones registradas.</div>';
+
+        body.innerHTML = `
+            <div class="dashboard-hero mb-5">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="dashboard-status-dot ${dashboard.serverStatus === 'ok' ? 'is-ok' : 'is-error'}"></span>
+                        <span class="text-[10px] uppercase tracking-widest font-bold text-editor-subtext">Conexión</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-editor-text truncate">${escapeHtml(dashboard.currentDocType || 'Sin DocType seleccionado')}</h3>
+                    <p class="text-[11px] text-editor-subtext truncate mt-1">${escapeHtml(dashboard.baseUrl || 'Sin URL')}</p>
+                </div>
+                <div class="dashboard-hero-meta">
+                    <span>${escapeHtml(dashboard.generatedAt.toLocaleTimeString())}</span>
+                    <span>${escapeHtml(dashboard.serverVersion ? `Proxy ${dashboard.serverVersion}` : 'Servidor local')}</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                ${renderDashboardMetric('Servidor local', dashboard.serverStatus, dashboard.serverStatus === 'ok' ? 'Activo' : 'Revisar', dashboard.serverStatus === 'ok' ? 'green' : 'red')}
+                ${renderDashboardMetric('DocTypes', dashboard.totalDocTypes, 'En el listado', 'accent')}
+                ${renderDashboardMetric('Registros', dashboard.docCountForCurrentDocType ?? '—', dashboard.currentDocType || 'Sin DocType', 'blue')}
+                ${renderDashboardMetric('Peticiones', dashboard.requestLogs, `media ${dashboard.avgDuration || 0} ms`, 'mauve')}
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-5">
+                <section class="space-y-5">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        ${renderSmallStat('Campos', dashboard.loadedFields)}
+                        ${renderSmallStat('De datos', dashboard.dataFields)}
+                        ${renderSmallStat('Obligatorios', dashboard.requiredFields)}
+                        ${renderSmallStat('Layout', dashboard.layoutFields)}
+                    </div>
+
+                    <div class="dashboard-card p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 class="text-sm font-bold text-editor-text">Campos del DocType</h4>
+                                <p class="text-[10px] text-editor-subtext">${escapeHtml(dashboard.currentDocType || 'Sin DocType seleccionado')} · agrupados por tipo</p>
+                            </div>
+                            <div class="flex gap-2 text-[10px]">
+                                <span class="dashboard-chip is-blue">${dashboard.linkFields} links</span>
+                                <span class="dashboard-chip is-teal">${dashboard.tableFields} tablas</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">${topFieldRows}</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        ${renderActionCard('Registros', 'Ver los registros del DocType actual.', 'Abrir registros', 'dashboard-action-records')}
+                        ${renderActionCard('Tests', 'Revisar o ejecutar pruebas de API.', 'Abrir tests', 'dashboard-action-tests')}
+                        ${renderActionCard('Consola', 'Probar una petición manual.', 'Abrir consola', 'dashboard-action-console')}
+                    </div>
+                </section>
+
+                <aside class="space-y-5">
+                    <div class="dashboard-card p-4">
+                        <h4 class="text-sm font-bold text-editor-text mb-1">Guardado local</h4>
+                        <p class="text-[10px] text-editor-subtext mb-4">Elementos guardados en este navegador.</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${renderSmallStat('Colecciones', dashboard.savedCollections)}
+                            ${renderSmallStat('Snapshots', dashboard.savedSnapshots)}
+                            ${renderSmallStat('Tests API', dashboard.apiTests)}
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-bold text-editor-text">Últimos registros</h4>
+                            <span class="text-[10px] text-editor-subtext">5 últimos</span>
+                        </div>
+                        ${recentRecords}
+                    </div>
+
+                    <div class="dashboard-card p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-bold text-editor-text">Últimas peticiones</h4>
+                            <button id="dashboard-action-logs" class="text-[10px] text-editor-accent hover:underline">Ver logs</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            ${renderSmallStat('Correctas', dashboard.successRequests)}
+                            ${renderSmallStat('Con error', dashboard.failedRequests)}
+                        </div>
+                        ${logRows}
+                    </div>
+                </aside>
+            </div>
+        `;
+
+        body.scrollTop = 0;
+        bindDashboardActions();
+    }
+
+    function bindDashboardActions() {
+        const modal = state.dashboardModalEl;
+        if (!modal) return;
+
+        modal.querySelector('#dashboard-action-records')?.addEventListener('click', () => {
+            if (!state.currentDocType) {
+                showToast('Selecciona un DocType para abrir registros.', 'warning');
+                return;
+            }
+            closeDashboard();
+            openRecordsModal();
+        });
+        modal.querySelector('#dashboard-action-tests')?.addEventListener('click', () => {
+            closeDashboard();
+            openTestsModal();
+        });
+        modal.querySelector('#dashboard-action-console')?.addEventListener('click', () => {
+            closeDashboard();
+            openConsole();
+        });
+        modal.querySelector('#dashboard-action-logs')?.addEventListener('click', () => {
+            closeDashboard();
+            if (dom.logsPanel?.classList.contains('translate-x-full')) {
+                toggleLogsPanel();
+            } else {
+                renderLogs();
+            }
+        });
+    }
+
+    function getFieldTypeStats() {
+        const counts = new Map();
+        state.currentFields.forEach(field => {
+            if (isMeta(field.fieldtype)) return;
+            const type = field.fieldtype || 'Sin tipo';
+            counts.set(type, (counts.get(type) || 0) + 1);
+        });
+        return Array.from(counts, ([type, count]) => ({ type, count }))
+            .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+    }
+
+    function renderDashboardMetric(label, value, detail, color) {
+        return `
+            <div class="dashboard-metric p-4">
+                <div class="text-[10px] uppercase tracking-wider text-editor-subtext font-bold">${escapeHtml(label)}</div>
+                <div class="mt-2 text-2xl font-bold text-editor-text">${escapeHtml(String(value))}</div>
+                <div class="mt-1 text-[10px] text-editor-subtext truncate">${escapeHtml(detail || '')}</div>
+            </div>
+        `;
+    }
+
+    function renderSmallStat(label, value) {
+        return `
+            <div class="dashboard-stat p-3">
+                <div class="text-[10px] text-editor-subtext">${escapeHtml(label)}</div>
+                <div class="text-lg font-bold text-editor-text">${escapeHtml(String(value ?? 0))}</div>
+            </div>
+        `;
+    }
+
+    function renderFieldTypeRow(item, total) {
+        const pct = total ? Math.round((item.count / total) * 100) : 0;
+        return `
+            <div>
+                <div class="flex items-center justify-between text-[11px] mb-1">
+                    <span class="font-semibold text-editor-text">${escapeHtml(item.type)}</span>
+                    <span class="text-editor-subtext">${item.count} · ${pct}%</span>
+                </div>
+                <div class="dashboard-bar">
+                    <div class="dashboard-bar-fill" style="width: ${pct}%"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderActionCard(title, description, buttonText, buttonId) {
+        return `
+            <div class="dashboard-action-card p-4 flex flex-col gap-3">
+                <div>
+                    <h5 class="text-xs font-bold text-editor-text">${escapeHtml(title)}</h5>
+                    <p class="text-[10px] text-editor-subtext mt-1">${escapeHtml(description)}</p>
+                </div>
+                <button id="${buttonId}" class="dashboard-soft-btn mt-auto py-1.5 px-3 rounded-lg text-[11px] font-bold border transition-all">${escapeHtml(buttonText)}</button>
+            </div>
+        `;
+    }
+
+    function formatDuration(duration) {
+        const value = Number(duration) || 0;
+        return value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value}ms`;
+    }
+
+    function formatDateShort(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function ensureConsoleModal() {
+        if (state.consoleModalEl) return state.consoleModalEl;
+
+        const modal = document.createElement('div');
+        modal.id = 'console-modal-runtime';
+        modal.className = 'hidden fixed inset-0 z-[220] bg-black/70 items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="w-full max-w-3xl bg-editor-surface border border-editor-border rounded-xl shadow-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-editor-border bg-editor-surface2 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-editor-text">Consola Interactiva API</h3>
+                    <button id="btn-close-console-runtime" class="text-editor-subtext hover:text-editor-text text-xs">✕</button>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div class="grid grid-cols-5 gap-3">
+                        <select id="console-method" class="input-field text-xs col-span-1">
+                            <option>GET</option>
+                            <option>POST</option>
+                            <option>PUT</option>
+                            <option>PATCH</option>
+                            <option>DELETE</option>
+                        </select>
+                        <input id="console-endpoint" type="text" class="input-field text-xs col-span-4" placeholder="resource/DocType?fields=[&quot;name&quot;]&limit_page_length=10" />
+                    </div>
+                    <textarea id="console-body" class="input-field text-xs font-mono min-h-[140px]" placeholder='{"key":"value"}'></textarea>
+                    <div class="flex justify-between items-center">
+                        <p class="text-[10px] text-editor-subtext">Endpoint relativo a /api (ej: resource/DocType...)</p>
+                        <button id="btn-run-console-runtime" class="py-1.5 px-3 rounded-lg text-[11px] font-bold bg-editor-accent text-white border border-editor-accent hover:opacity-90">Ejecutar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        state.consoleModalEl = modal;
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeConsole();
+        });
+        modal.querySelector('#btn-close-console-runtime').addEventListener('click', closeConsole);
+        modal.querySelector('#btn-run-console-runtime').addEventListener('click', runConsoleCommand);
+        return modal;
+    }
+
+    function openConsole() {
+        if (!state.connected) {
+            showToast('Conéctate primero para usar la consola.', 'error');
+            return;
+        }
+        const modal = ensureConsoleModal();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        const endpointInput = modal.querySelector('#console-endpoint');
+        if (endpointInput && !endpointInput.value.trim()) {
+            endpointInput.value = `resource/${encodeURIComponent(state.currentDocType || 'DocType')}?fields=["name"]&limit_page_length=10`;
+        }
+        setTimeout(() => endpointInput?.focus(), 0);
+    }
+
+    function closeConsole() {
+        if (!state.consoleModalEl) return;
+        state.consoleModalEl.classList.add('hidden');
+        state.consoleModalEl.classList.remove('flex');
+    }
+
+    async function runConsoleCommand() {
+        if (!state.consoleModalEl) return;
+        const method = state.consoleModalEl.querySelector('#console-method').value || 'GET';
+        const rawEndpoint = (state.consoleModalEl.querySelector('#console-endpoint').value || '').trim();
+        const rawBody = (state.consoleModalEl.querySelector('#console-body').value || '').trim();
+
+        if (!rawEndpoint) {
+            showToast('Especifica un endpoint para ejecutar.', 'error');
+            return;
+        }
+
+        const normalizedEndpoint = rawEndpoint.replace(/^\/+/, '');
+        const path = normalizedEndpoint.startsWith('api/') ? `/${normalizedEndpoint}` : `/api/${normalizedEndpoint}`;
+        const options = { method };
+
+        if (!['GET', 'HEAD'].includes(method) && rawBody) {
+            try {
+                JSON.parse(rawBody);
+                options.body = rawBody;
+            } catch {
+                showToast('Body JSON inválido.', 'error');
+                return;
+            }
+        }
+
+        try {
+            const res = await apiFetch(path, options);
+            const text = await res.text();
+            let pretty = text;
+            try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch { /* keep raw text */ }
+            openPayloadModal(`Console ${method} ${path}`, pretty);
+        } catch (err) {
+            showToast(`Console Error: ${err.message}`, 'error');
+        }
     }
 
     async function handleGlobalSearchInput() {
@@ -2970,6 +3951,30 @@
 
 
     // ── Helpers ───────────────────────────────────────
+    function downloadFile(filename, content, mimeType = 'text/plain;charset=utf-8') {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function getSafeFileBaseName(name) {
+        return String(name || 'doctype')
+            .trim()
+            .replace(/[\\/:*?"<>|]+/g, '-')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'doctype';
+    }
+
     function isMeta(ft) {
         const metaTypes = [
             'section break', 'column break', 'tab break', 'html', 
