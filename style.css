@@ -96,6 +96,7 @@ html.light body {
 }
 
 #btn-toggle-logs,
+#btn-toggle-errors,
 #btn-open-tests,
 #btn-open-dashboard,
 #btn-open-console,
@@ -113,6 +114,7 @@ html.light body {
 }
 
 #btn-toggle-logs:hover,
+#btn-toggle-errors:hover,
 #btn-open-tests:hover,
 #btn-open-dashboard:hover,
 #btn-open-console:hover,
@@ -127,6 +129,11 @@ html.light body {
     border-color: var(--color-editor-subtext) !important;
     color: var(--color-editor-text) !important;
     opacity: 1 !important;
+}
+
+#btn-toggle-errors {
+    color: var(--color-editor-red) !important;
+    border-color: color-mix(in srgb, var(--color-editor-red) 38%, var(--color-editor-border)) !important;
 }
 
 #btn-open-tests,
@@ -164,6 +171,7 @@ html.light body {
 }
 
 #btn-toggle-logs:hover,
+#btn-toggle-errors:hover,
 #btn-open-tests:hover,
 #btn-open-dashboard:hover,
 #btn-open-console:hover,
@@ -176,6 +184,40 @@ html.light body {
 #btn-create-doc:hover {
     background-color: color-mix(in srgb, currentColor 10%, var(--color-editor-surface2)) !important;
     border-color: currentColor !important;
+}
+
+.sidebar-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    padding: 0.5rem;
+}
+
+.sidebar-tab {
+    width: 100%;
+    min-width: 0;
+    padding: 0.55rem 0.35rem;
+    border: 1px solid transparent;
+    color: var(--color-editor-subtext);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    border-radius: 0.55rem;
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.sidebar-tab:hover {
+    color: var(--color-editor-text);
+    background-color: color-mix(in srgb, var(--color-editor-surface2) 80%, transparent);
+}
+
+.sidebar-tab-active {
+    color: var(--color-editor-text);
+    border-color: color-mix(in srgb, var(--color-editor-accent) 55%, transparent);
+    background-color: color-mix(in srgb, var(--color-editor-accent) 10%, transparent);
 }
 
 #schema-export-menu {
@@ -328,6 +370,7 @@ select:focus-visible {
 
 /* Header buttons */
 #btn-toggle-logs,
+#btn-toggle-errors,
 #btn-open-tests,
 #btn-open-dashboard,
 #btn-open-console {
@@ -337,6 +380,7 @@ select:focus-visible {
 }
 
 #btn-toggle-logs:hover,
+#btn-toggle-errors:hover,
 #btn-open-tests:hover,
 #btn-open-dashboard:hover,
 #btn-open-console:hover {
@@ -633,6 +677,7 @@ select:focus-visible {
     }
 
     #btn-toggle-logs,
+    #btn-toggle-errors,
     #btn-open-tests,
     #btn-open-dashboard,
     #btn-open-console,

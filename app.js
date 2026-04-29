@@ -6,14 +6,6 @@
 ;(() => {
     'use strict';
 
-    window.onerror = function(msg, url, line, col, error) {
-        alert("CRITICAL ERROR: " + msg + "\nLine: " + line + "\nCol: " + col + "\nStack: " + (error ? error.stack : ''));
-        return false;
-    };
-    window.addEventListener('unhandledrejection', function(event) {
-        alert("UNHANDLED PROMISE REJECTION: " + event.reason);
-    });
-
     // ── DOM References ────────────────────────────────
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -96,12 +88,17 @@
         
         // Logs Panel
         btnToggleLogs:   $('#btn-toggle-logs'),
+        btnToggleErrors: $('#btn-toggle-errors'),
         logsPanel:       $('#logs-panel'),
+        logsPanelTitle:  $('#logs-panel-title'),
         logsList:        $('#logs-list'),
         btnClearLogs:    $('#btn-clear-logs'),
         btnCloseLogs:    $('#btn-close-logs'),
         logDetailsPanel: $('#log-details-panel'),
         btnCopyLog:      $('#btn-copy-log'),
+        btnReverseLog:   $('#btn-reverse-log'),
+        btnEditVsCodeLog:$('#btn-edit-vscode-log'),
+        btnCopyFixLog:   $('#btn-copy-fix-log'),
         btnCloseLogDetails:$('#btn-close-log-details'),
         logDetailsContent: $('#log-details-content'),
 
@@ -139,11 +136,20 @@
 
         // Sidebar Tabs & Collections
         tabExplorer:     $('#tab-explorer'),
+        tabCodeExplorer: $('#tab-code-explorer'),
         tabCollections:  $('#tab-collections'),
         tabWebhooks:     $('#tab-webhooks'),
         contentExplorer: $('#tab-content-explorer'),
+        contentCodeExplorer: $('#tab-content-code-explorer'),
         contentCollections:$('#tab-content-collections'),
         contentWebhooks: $('#tab-content-webhooks'),
+        inputSearchCodeDocType: $('#input-search-code-doctype'),
+        inputLocalBenchPath: $('#input-local-bench-path'),
+        codeDocTypeCount: $('#code-doctype-count'),
+        codeDocTypeList: $('#code-doctype-list'),
+        codeDocTypeEmpty: $('#code-doctype-empty'),
+        btnRefreshCodePaths: $('#btn-refresh-code-paths'),
+        btnOpenAppRoot: $('#btn-open-app-root'),
         collectionsList: $('#collections-list'),
         collectionsEmpty:$('#collections-empty'),
 
@@ -265,12 +271,18 @@
         queryFilters: [],
         currentRecords: [],
         requestLogs: [],
+        activeLogView: 'all',
         selectedLogId: null,
         selectedRecords: new Set(),
         savedCollections: JSON.parse(localStorage.getItem('fapi_collections') || '[]'),
         schemaSnapshots: JSON.parse(localStorage.getItem('fapi_schema_snapshots') || '{}'),
         apiTests: JSON.parse(localStorage.getItem('fapi_api_tests') || '[]'),
         selectedTestId: null,
+        codeDoctypePaths: [],
+        codeExplorerQuery: '',
+        localBenchPath: localStorage.getItem('fapi_local_bench_path') || '',
+        appRootPath: '',
+        codeExplorerBackendError: '',
         
         globalSearchResults: [],
         globalSearchIndex: -1,
@@ -286,7 +298,6 @@
     };
 
     // ── LocalStorage Keys ─────────────────────────────
-    const STORAGE_KEY = 'frappe_inspector_connection';
     const THEME_KEY = 'fapi_theme';
 
     // ── Init ──────────────────────────────────────────
@@ -300,6 +311,9 @@
         window._inspectorJumpTo = (docType) => {
             if (docType) selectDocType(docType);
         };
+        window.get_reverse_script = get_reverse_script;
+        if (dom.inputLocalBenchPath) dom.inputLocalBenchPath.value = state.localBenchPath;
+        initGlobalErrorCapture();
     }
 
     // ── Utilities ─────────────────────────────────────
@@ -371,21 +385,16 @@
     // ── Connection Persistence ────────────────────────
     function loadSavedConnection() {
         try {
-            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-            if (saved) {
-                dom.inputUrl.value = saved.url || '';
-                dom.inputApiKey.value = saved.apiKey || '';
-                dom.inputApiSecret.value = saved.apiSecret || '';
-            }
+            // Security hardening: never persist URL/API credentials locally.
+            localStorage.removeItem('frappe_inspector_connection');
+            dom.inputUrl.value = '';
+            dom.inputApiKey.value = '';
+            dom.inputApiSecret.value = '';
         } catch { /* ignore */ }
     }
 
     function saveConnection() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            url: dom.inputUrl.value.trim(),
-            apiKey: dom.inputApiKey.value.trim(),
-            apiSecret: dom.inputApiSecret.value.trim(),
-        }));
+        // Intentionally no-op: credentials should not be stored.
     }
 
     // ── Event Binding ─────────────────────────────────
@@ -406,6 +415,7 @@
 
         // Sidebar Tabs
         safeBind(dom.tabExplorer, 'click', () => switchSidebarTab('explorer'));
+        safeBind(dom.tabCodeExplorer, 'click', () => switchSidebarTab('code-explorer'));
         safeBind(dom.tabCollections, 'click', () => switchSidebarTab('collections'));
         safeBind(dom.tabWebhooks, 'click', () => switchSidebarTab('webhooks'));
         
@@ -424,6 +434,10 @@
 
         safeBind(dom.inputSearch, 'input', debounce(filterDocTypes, 150));
         safeBind(dom.btnRefresh, 'click', fetchDocTypes);
+        safeBind(dom.inputSearchCodeDocType, 'input', debounce(filterCodeExplorer, 150));
+        safeBind(dom.inputLocalBenchPath, 'input', debounce(updateLocalBenchPath, 150));
+        safeBind(dom.btnRefreshCodePaths, 'click', fetchCodeExplorerPaths);
+        safeBind(dom.btnOpenAppRoot, 'click', openAppRootInVsCode);
         
         safeBind(dom.inputSearch, 'keydown', (e) => {
             if (e.key === 'Enter') {
@@ -498,10 +512,14 @@
         safeBind(dom.inputRecordsQuickSearch, 'input', debounce(() => fetchRecords(false), 500));
 
         safeBind(dom.btnToggleLogs, 'click', toggleLogsPanel);
+        safeBind(dom.btnToggleErrors, 'click', toggleErrorsPanel);
         safeBind(dom.btnCloseLogs, 'click', toggleLogsPanel);
         safeBind(dom.btnClearLogs, 'click', clearLogs);
         safeBind(dom.btnCloseLogDetails, 'click', closeLogDetails);
         safeBind(dom.btnCopyLog, 'click', copyLogDetails);
+        safeBind(dom.btnReverseLog, 'click', copyReverseScript);
+        safeBind(dom.btnEditVsCodeLog, 'click', openTracebackInVsCode);
+        safeBind(dom.btnCopyFixLog, 'click', copyTracebackFixCommand);
 
         safeBind(dom.btnCloseModal, 'click', closePayloadModal);
         safeBind(dom.modalBackdrop, 'click', closePayloadModal);
@@ -645,9 +663,9 @@
             const msg = err.response ? await parseFrappeError(err.response, 'Fallo en la conexión con el servidor') : `Error de la App: ${err.message}`;
             showToast(msg, 'error');
             
-            // diagnostic: Auto-open logs to show technical details
-            if (dom.logsPanel.classList.contains('hidden')) {
-                dom.btnToggleLogs.click();
+            // Diagnostic: auto-open error view for quick troubleshooting
+            if (dom.logsPanel.classList.contains('translate-x-full')) {
+                openLogsPanel('errors');
             }
         } finally {
             setConnectLoading(false);
@@ -704,14 +722,29 @@
             status: 0,
             duration: 0,
             response: null,
-            error: null
+            error: null,
+            before_state: null,
+            is_new: false,
+            reverse_doctype: null,
+            reverse_docname: null
         };
         
+        const reverseTarget = inferReverseTarget(path, method);
+        if (reverseTarget) {
+            logEntry.reverse_doctype = reverseTarget.doctype;
+            logEntry.reverse_docname = reverseTarget.name;
+            logEntry.is_new = method === 'POST';
+        }
+
         state.requestLogs.unshift(logEntry);
         if (state.requestLogs.length > 100) state.requestLogs.pop();
         renderLogs();
 
         try {
+            if (method === 'PUT' && reverseTarget?.doctype && reverseTarget?.name) {
+                logEntry.before_state = await getBeforeState(reverseTarget.doctype, reverseTarget.name);
+            }
+
             const res = await fetch(proxyUrl, {
                 ...options,
                 signal: controller.signal,
@@ -728,16 +761,25 @@
 
             const resClone = res.clone();
             const text = await resClone.text();
+            let parsedResponse = null;
             try {
-                logEntry.response = JSON.stringify(JSON.parse(text), null, 2);
+                parsedResponse = JSON.parse(text);
+                logEntry.response = JSON.stringify(parsedResponse, null, 2);
             } catch {
                 logEntry.response = text;
+            }
+
+            if (logEntry.is_new && parsedResponse) {
+                logEntry.reverse_docname = parsedResponse.data?.name || parsedResponse.message?.name || parsedResponse.name || logEntry.reverse_docname;
             }
 
             if (res.status >= 200 && res.status < 300) {
                 _sessionExpiredShown = false;
                 hideSessionExpiredBanner();
             } else {
+                if (res.status === 403) {
+                    logEntry.permissionDiagnosis = await diagnosePermissionFailure(logEntry);
+                }
                 if ((res.status === 401 || res.status === 403) && !_sessionExpiredShown) {
                     if (state.connected && !path.includes('limit_page_length=1')) {
                         _sessionExpiredShown = true;
@@ -746,6 +788,7 @@
                 }
                 const error = new Error(`HTTP ${res.status}`);
                 error.response = res;
+                error.permissionDiagnosis = logEntry.permissionDiagnosis;
                 throw error;
             }
 
@@ -768,6 +811,212 @@
             }
             throw err;
         }
+    }
+
+    async function diagnosticFetch(path) {
+        if (!state.baseUrl || !state.authHeader) {
+            throw new Error('No hay conexion activa para diagnosticar permisos.');
+        }
+
+        const res = await fetch(`/proxy/${encodeURIComponent(state.baseUrl + path)}`, {
+            headers: {
+                'Authorization': state.authHeader,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+        });
+
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        return data;
+    }
+
+    function inferReverseTarget(path, method) {
+        const cleanPath = (path || '').split('?')[0];
+        const resourceMatch = cleanPath.match(/\/api\/resource\/([^/]+)(?:\/([^/]+))?/);
+        if (!resourceMatch || !['POST', 'PUT'].includes(method)) return null;
+
+        return {
+            doctype: decodeURIComponent(resourceMatch[1]),
+            name: resourceMatch[2] ? decodeURIComponent(resourceMatch[2]) : null,
+        };
+    }
+
+    function initGlobalErrorCapture() {
+        window.onerror = function(msg, url, line, col, error) {
+            addRuntimeErrorLog({
+                source: url || 'window.onerror',
+                message: String(msg || 'Error inesperado en la app'),
+                detail: error?.stack || `Line: ${line || '-'} · Col: ${col || '-'}`,
+            });
+            return false;
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+            const reason = event.reason;
+            const reasonText = reason instanceof Error
+                ? `${reason.name}: ${reason.message}`
+                : (typeof reason === 'string' ? reason : JSON.stringify(reason));
+            addRuntimeErrorLog({
+                source: 'unhandledrejection',
+                message: 'Promesa rechazada sin manejo',
+                detail: reasonText || 'Sin detalle',
+            });
+        });
+    }
+
+    function addRuntimeErrorLog({ source, message, detail }) {
+        const logEntry = {
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+            timestamp: new Date(),
+            method: 'APP',
+            url: source || 'frontend',
+            payload: null,
+            status: 500,
+            duration: 0,
+            response: detail ? JSON.stringify({ detail }, null, 2) : null,
+            error: message || 'Error inesperado',
+            before_state: null,
+            is_new: false,
+            reverse_doctype: null,
+            reverse_docname: null
+        };
+        state.requestLogs.unshift(logEntry);
+        if (state.requestLogs.length > 100) state.requestLogs.pop();
+        renderLogs();
+    }
+
+    async function getBeforeState(doctype, name) {
+        try {
+            const data = await diagnosticFetch(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`);
+            return data.data || data.message || data;
+        } catch {
+            return null;
+        }
+    }
+
+    function inferPermissionContext(log) {
+        const url = log.url || '';
+        const method = (log.method || 'GET').toUpperCase();
+        const cleanPath = url.split('?')[0];
+        const query = url.includes('?') ? url.substring(url.indexOf('?') + 1) : '';
+        let docType = '';
+
+        const resourceMatch = cleanPath.match(/\/api\/resource\/([^/]+)/);
+        if (resourceMatch) {
+            docType = decodeURIComponent(resourceMatch[1]);
+        }
+
+        if (!docType && query) {
+            const params = new URLSearchParams(query);
+            docType = params.get('doctype') || params.get('dt') || '';
+        }
+
+        let permissionType = 'read';
+        if (method === 'POST' && cleanPath.includes('/api/resource/')) permissionType = 'create';
+        else if (['PUT', 'PATCH'].includes(method)) permissionType = 'write';
+        else if (method === 'DELETE') permissionType = 'delete';
+
+        return { docType, method, permissionType };
+    }
+
+    async function diagnosePermissionFailure(log) {
+        const context = inferPermissionContext(log);
+        const errors = [];
+        const diagnosis = {
+            doctype: context.docType || null,
+            method: context.method,
+            permission_type: context.permissionType,
+            missing_roles: {
+                required_roles: [],
+                user_roles: [],
+                missing: [],
+                has_matching_role: false,
+                source: 'DocPerm',
+            },
+            user_permissions: {
+                checked: false,
+                can_block_access: false,
+                filters: [],
+                note: 'No se pudieron evaluar User Permissions para esta peticion.',
+            },
+            link: context.docType ? `${state.baseUrl}/app/role-permissions-manager?doctype=${encodeURIComponent(context.docType)}` : `${state.baseUrl}/app/role-permissions-manager`,
+            errors,
+        };
+
+        if (!context.docType) {
+            errors.push('No se pudo inferir el DocType desde la URL fallida.');
+            return diagnosis;
+        }
+
+        let user = '';
+        try {
+            const userData = await diagnosticFetch('/api/method/frappe.auth.get_logged_user');
+            user = userData?.message || '';
+        } catch (err) {
+            errors.push(`No se pudo obtener el usuario activo: ${err.message}`);
+        }
+
+        try {
+            if (user) {
+                const filters = encodeURIComponent(JSON.stringify([['parenttype', '=', 'User'], ['parent', '=', user]]));
+                const fields = encodeURIComponent(JSON.stringify(['role']));
+                const rolesData = await diagnosticFetch(`/api/resource/Has Role?filters=${filters}&fields=${fields}&limit_page_length=0`);
+                diagnosis.missing_roles.user_roles = (rolesData.data || []).map(r => r.role).filter(Boolean).sort();
+            }
+        } catch (err) {
+            errors.push(`No se pudieron leer los roles del usuario: ${err.message}`);
+        }
+
+        try {
+            const filters = encodeURIComponent(JSON.stringify([['parent', '=', context.docType]]));
+            const fields = encodeURIComponent(JSON.stringify(['role', 'read', 'write', 'create', 'delete', 'submit', 'cancel', 'amend', 'permlevel']));
+            const permsData = await diagnosticFetch(`/api/resource/DocPerm?filters=${filters}&fields=${fields}&limit_page_length=0`);
+            const requiredRoles = (permsData.data || [])
+                .filter(p => Number(p.permlevel || 0) === 0 && Number(p[context.permissionType] || 0) === 1)
+                .map(p => p.role)
+                .filter(Boolean);
+
+            diagnosis.missing_roles.required_roles = [...new Set(requiredRoles)].sort();
+            diagnosis.missing_roles.has_matching_role = diagnosis.missing_roles.required_roles
+                .some(role => diagnosis.missing_roles.user_roles.includes(role));
+            diagnosis.missing_roles.missing = diagnosis.missing_roles.required_roles
+                .filter(role => !diagnosis.missing_roles.user_roles.includes(role));
+        } catch (err) {
+            errors.push(`No se pudieron leer los DocPerm del DocType: ${err.message}`);
+        }
+
+        try {
+            if (user) {
+                const filters = encodeURIComponent(JSON.stringify([['user', '=', user]]));
+                const fields = encodeURIComponent(JSON.stringify(['allow', 'for_value', 'applicable_for', 'is_default', 'hide_descendants']));
+                const upData = await diagnosticFetch(`/api/resource/User Permission?filters=${filters}&fields=${fields}&limit_page_length=0`);
+                const userPerms = upData.data || [];
+                const linkTargets = new Set((state.currentDocType === context.docType ? state.currentFields : [])
+                    .filter(f => f.fieldtype === 'Link' && f.options)
+                    .map(f => f.options));
+                const relevant = userPerms.filter(p => {
+                    if (p.applicable_for && p.applicable_for !== context.docType) return false;
+                    return p.allow === context.docType || linkTargets.has(p.allow) || !p.applicable_for;
+                });
+
+                diagnosis.user_permissions.checked = true;
+                diagnosis.user_permissions.filters = relevant;
+                diagnosis.user_permissions.can_block_access = relevant.length > 0;
+                diagnosis.user_permissions.note = relevant.length > 0
+                    ? 'Hay User Permissions relevantes; pueden limitar registros por valor permitido o por campos Link del DocType.'
+                    : 'No se detectaron User Permissions relevantes para este DocType.';
+            }
+        } catch (err) {
+            errors.push(`No se pudieron leer User Permissions: ${err.message}`);
+        }
+
+        return diagnosis;
     }
 
     function showSessionExpiredBanner() {
@@ -2691,30 +2940,81 @@
 
     // ── Request Logs Panel ────────────────────────────────────
     function toggleLogsPanel() {
+        openLogsPanel('all');
+    }
+
+    function toggleErrorsPanel() {
+        openLogsPanel('errors');
+    }
+
+    function openLogsPanel(view = 'all') {
+        state.activeLogView = view;
+        updateLogsPanelTitle();
         const pan = dom.logsPanel;
         if (pan.classList.contains('translate-x-full')) {
             pan.classList.remove('translate-x-full');
             renderLogs();
         } else {
-            pan.classList.add('translate-x-full');
+            if (view === 'all') {
+                pan.classList.add('translate-x-full');
+            } else {
+                renderLogs();
+            }
         }
     }
 
     function clearLogs() {
-        state.requestLogs = [];
+        if (state.activeLogView === 'errors') {
+            state.requestLogs = state.requestLogs.filter(log => !isErrorLog(log));
+        } else {
+            state.requestLogs = [];
+        }
         closeLogDetails();
         renderLogs();
     }
 
+    function updateLogsPanelTitle() {
+        if (!dom.logsPanelTitle) return;
+        const titleText = state.activeLogView === 'errors' ? 'Errores y Causas' : 'Historial de Peticiones';
+        dom.logsPanelTitle.innerHTML = `
+            <svg class="w-4 h-4 text-editor-subtext" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0" />
+            </svg>
+            ${titleText}
+        `;
+    }
+
+    function isErrorLog(log) {
+        return Boolean(log?.error) || Number(log?.status) >= 400;
+    }
+
+    function getVisibleLogs() {
+        return state.activeLogView === 'errors'
+            ? state.requestLogs.filter(isErrorLog)
+            : state.requestLogs;
+    }
+
+    function getErrorReason(log) {
+        if (log.error) return log.error;
+        if (log.status === 401) return 'No autenticado o sesión expirada';
+        if (log.status === 403) return 'Permisos insuficientes para esta acción';
+        if (log.status === 404) return 'Ruta o recurso no encontrado';
+        if (log.status >= 500) return 'Error interno del servidor';
+        return 'Respuesta con error';
+    }
+
     function renderLogs() {
         dom.logsList.innerHTML = '';
-        if (state.requestLogs.length === 0) {
-            dom.logsList.innerHTML = '<div class="text-center text-editor-subtext text-xs italic mt-10">No hay peticiones registradas aún.</div>';
+        const visibleLogs = getVisibleLogs();
+        if (visibleLogs.length === 0) {
+            dom.logsList.innerHTML = state.activeLogView === 'errors'
+                ? '<div class="text-center text-editor-subtext text-xs italic mt-10">No hay errores registrados.</div>'
+                : '<div class="text-center text-editor-subtext text-xs italic mt-10">No hay peticiones registradas aún.</div>';
             return;
         }
 
         const frag = document.createDocumentFragment();
-        state.requestLogs.forEach(l => {
+        visibleLogs.forEach(l => {
             const div = document.createElement('div');
             const methodColor = l.method === 'GET' ? 'text-blue-400' : (l.method === 'POST' ? 'text-editor-green' : (l.method === 'PUT' ? 'text-editor-yellow' : 'text-editor-red'));
             const statusColor = l.status >= 200 && l.status < 300 ? 'text-editor-green' : (l.status === 0 ? 'text-editor-subtext animate-pulse-soft' : 'text-editor-red');
@@ -2731,6 +3031,7 @@
                     <span class="text-[9px] text-editor-subtext">${l.timestamp.toLocaleTimeString()}</span>
                 </div>
                 <div class="text-[11px] text-editor-text truncate font-mono mb-1.5 opacity-90">${l.url}</div>
+                ${state.activeLogView === 'errors' ? `<div class="text-[10px] text-editor-red truncate mb-1.5">Causa: ${escapeHtml(getErrorReason(l))}</div>` : ''}
                 <div class="flex items-center gap-3 text-[10px] text-editor-subtext">
                     <span class="flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>${l.duration}ms</span>
                     ${l.payload ? `<span class="flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Body</span>` : ''}
@@ -2746,6 +3047,13 @@
     function openLogDetails(log) {
         state.selectedLogId = log.id;
         renderLogs();
+        if (dom.btnReverseLog) {
+            const hasReverse = Boolean(get_reverse_script(log.id));
+            dom.btnReverseLog.classList.toggle('hidden', !hasReverse);
+        }
+        const traceback = parsePythonTraceback(log);
+        dom.btnEditVsCodeLog?.classList.toggle('hidden', !traceback);
+        dom.btnCopyFixLog?.classList.toggle('hidden', !traceback);
         
         dom.logDetailsPanel.classList.remove('hidden');
         dom.logDetailsPanel.classList.add('flex');
@@ -2759,7 +3067,22 @@
                 content += log.payload + '\\n\\n';
             }
         }
+
+        if (log.is_new || log.before_state) {
+            content += '----- REVERSE -----\\n';
+            content += `DocType: ${escapeHtml(log.reverse_doctype || 'N/A')}\\n`;
+            content += `Name: ${escapeHtml(log.reverse_docname || 'N/A')}\\n`;
+            content += `Mode: ${log.is_new ? 'delete created document' : 'restore before_state'}\\n\\n`;
+        }
         
+        if (log.status === 403) {
+            content += renderPermissionDiagnosis(log.permissionDiagnosis);
+        }
+
+        if (traceback) {
+            content += renderTracebackTools(traceback, get_ai_fix_suggestion(log.id));
+        }
+
         content += '----- RESPONSE BODY (Status: ' + log.status + ') -----\\n';
         if (log.response) {
             content += syntaxHighlightJSON(log.response);
@@ -2772,10 +3095,230 @@
         dom.logDetailsContent.innerHTML = content;
     }
 
+    function renderPermissionDiagnosis(diagnosis) {
+        if (!diagnosis) {
+            return `
+                <div class="my-3 p-3 rounded-lg border border-editor-yellow/40 bg-editor-yellow/5 font-sans whitespace-normal">
+                    <div class="text-xs font-bold text-editor-yellow mb-1">Permission Diagnosis</div>
+                    <div class="text-[11px] text-editor-subtext">No se pudo generar el diagnostico para este 403.</div>
+                </div>
+            `;
+        }
+
+        const missing = diagnosis.missing_roles || {};
+        const userPermissions = diagnosis.user_permissions || {};
+        const requiredRoles = missing.required_roles || [];
+        const userRoles = missing.user_roles || [];
+        const missingRoles = missing.missing || [];
+        const userPermissionFilters = userPermissions.filters || [];
+        const rolesText = (roles) => roles.length ? roles.map(escapeHtml).join(', ') : 'N/A';
+        const filtersText = userPermissionFilters.length
+            ? userPermissionFilters.map(p => `${escapeHtml(p.allow || 'N/A')}: ${escapeHtml(p.for_value || '*')}`).join('<br>')
+            : escapeHtml(userPermissions.note || 'Sin filtros relevantes.');
+        const roleResult = !requiredRoles.length ? 'No disponible' : (missingRoles.length ? rolesText(missingRoles) : 'OK');
+        const roleResultClass = !requiredRoles.length ? 'text-editor-subtext' : (missingRoles.length ? 'text-editor-red' : 'text-editor-green');
+        const userPermissionResult = userPermissions.checked
+            ? (userPermissions.can_block_access ? 'Puede bloquear acceso' : 'Sin bloqueo detectado')
+            : 'No disponible';
+        const userPermissionResultClass = !userPermissions.checked ? 'text-editor-subtext' : (userPermissions.can_block_access ? 'text-editor-yellow' : 'text-editor-green');
+        const json = escapeHtml(JSON.stringify(diagnosis, null, 2));
+
+        return `
+            <div class="my-3 rounded-lg border border-editor-red/30 bg-editor-red/5 overflow-hidden font-sans whitespace-normal">
+                <div class="px-3 py-2 border-b border-editor-red/20 flex items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs font-bold text-editor-red">Permission Diagnosis</div>
+                        <div class="text-[10px] text-editor-subtext">${escapeHtml(diagnosis.doctype || 'DocType desconocido')} · ${escapeHtml(diagnosis.permission_type || 'read')}</div>
+                    </div>
+                    <a href="${escapeHtml(diagnosis.link || '#')}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded bg-editor-red text-white text-[10px] font-bold hover:opacity-90">
+                        Role Permissions Manager
+                    </a>
+                </div>
+                <div class="p-3 overflow-x-auto">
+                    <table class="w-full text-[10px] border-collapse">
+                        <thead class="text-editor-subtext uppercase tracking-wider">
+                            <tr>
+                                <th class="text-left p-2 border-b border-editor-border">Check</th>
+                                <th class="text-left p-2 border-b border-editor-border">Esperado</th>
+                                <th class="text-left p-2 border-b border-editor-border">Usuario</th>
+                                <th class="text-left p-2 border-b border-editor-border">Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-editor-text">
+                            <tr>
+                                <td class="p-2 border-b border-editor-border">Missing Roles</td>
+                                <td class="p-2 border-b border-editor-border">${rolesText(requiredRoles)}</td>
+                                <td class="p-2 border-b border-editor-border">${rolesText(userRoles)}</td>
+                                <td class="p-2 border-b border-editor-border ${roleResultClass}">${roleResult}</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2">User Permissions</td>
+                                <td class="p-2">Sin filtros que bloqueen el DocType</td>
+                                <td class="p-2">${filtersText}</td>
+                                <td class="p-2 ${userPermissionResultClass}">${userPermissionResult}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-[10px] text-editor-accent font-semibold">Ver JSON diagnostico</summary>
+                        <pre class="mt-2 p-2 rounded bg-editor-bg border border-editor-border text-[10px] overflow-auto whitespace-pre-wrap">${json}</pre>
+                    </details>
+                </div>
+            </div>
+        `;
+    }
+
+    function getLogErrorText(log) {
+        return [log?.response, log?.error].filter(Boolean).join('\n');
+    }
+
+    function parsePythonTraceback(log) {
+        const text = getLogErrorText(log);
+        if (!text) return null;
+
+        let tracebackText = text;
+        try {
+            const parsed = JSON.parse(text);
+            tracebackText = [
+                parsed.traceback,
+                parsed.exception,
+                parsed.exc,
+                parsed._server_messages,
+                parsed.message,
+            ].filter(Boolean).map(v => typeof v === 'string' ? v : JSON.stringify(v)).join('\n');
+        } catch { /* keep raw text */ }
+
+        const lines = tracebackText.split(/\r?\n/);
+        const frames = [];
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(/File "([^"]+)", line (\d+)(?:, in (.+))?/);
+            if (!match) continue;
+            frames.push({
+                file_path: match[1],
+                line_number: Number(match[2]),
+                function_name: match[3] || '',
+                code_context: (lines[i + 1] || '').trim(),
+            });
+        }
+
+        const frame = [...frames].reverse().find(f => !/\/(env|venv|site-packages)\//.test(f.file_path.replace(/\\/g, '/'))) || frames.at(-1);
+        if (!frame) return null;
+
+        return {
+            ...frame,
+            vscode_url: `vscode://file/${encodeURI(frame.file_path)}:${frame.line_number}`,
+            raw: tracebackText,
+        };
+    }
+
+    function renderTracebackTools(traceback, suggestion) {
+        return `
+            <div class="my-3 rounded-lg border border-editor-accent/30 bg-editor-accent/5 overflow-hidden font-sans whitespace-normal">
+                <div class="px-3 py-2 border-b border-editor-accent/20 flex items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs font-bold text-editor-accent">Traceback Link</div>
+                        <div class="text-[10px] text-editor-subtext font-mono">${escapeHtml(traceback.file_path)}:${traceback.line_number}</div>
+                    </div>
+                    <a href="${escapeHtml(traceback.vscode_url)}" class="px-2.5 py-1 rounded bg-editor-accent text-white text-[10px] font-bold hover:opacity-90">
+                        Edit in VS Code
+                    </a>
+                </div>
+                <div class="p-3 space-y-2">
+                    <pre class="p-2 rounded bg-editor-bg border border-editor-border text-[10px] overflow-auto whitespace-pre-wrap">${escapeHtml(suggestion.diff)}</pre>
+                    <pre class="p-2 rounded bg-editor-bg border border-editor-border text-[10px] overflow-auto whitespace-pre-wrap">${escapeHtml(suggestion.sed_command)}</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    function shellSingleQuote(value) {
+        return `'${String(value ?? '').replace(/'/g, `'\\''`)}'`;
+    }
+
+    function get_ai_fix_suggestion(log_name) {
+        const log = state.requestLogs.find(l => l.id === log_name);
+        const traceback = parsePythonTraceback(log);
+        if (!traceback) return { diff: '', sed_command: '' };
+
+        const oldLine = traceback.code_context || '# linea original no disponible';
+        const newLine = oldLine.startsWith('#') ? oldLine : `# TODO: revisar error antes de restaurar\n${oldLine}`;
+        const diff = [
+            `--- ${traceback.file_path}`,
+            `+++ ${traceback.file_path}`,
+            `@@ -${traceback.line_number},1 +${traceback.line_number},2 @@`,
+            `-${oldLine}`,
+            `+${newLine.replace(/\n/g, '\n+')}`,
+        ].join('\n');
+        const sedExpr = `${traceback.line_number}s|^|# TODO AI Fix: revisar traceback antes de ejecutar cambios\\n|`;
+        const sed_command = `python - <<'PY'\nimport os\npath = os.path.abspath(${JSON.stringify(traceback.file_path)})\nprint("sed -i.bak ${shellSingleQuote(sedExpr)} " + repr(path))\nPY`;
+
+        return { diff, sed_command };
+    }
+
+    function openTracebackInVsCode() {
+        const log = state.requestLogs.find(l => l.id === state.selectedLogId);
+        const traceback = parsePythonTraceback(log);
+        if (!traceback) return;
+        window.location.href = traceback.vscode_url;
+    }
+
+    function copyTracebackFixCommand() {
+        const suggestion = get_ai_fix_suggestion(state.selectedLogId);
+        if (!suggestion.sed_command) return;
+        copyToClipboard(suggestion.sed_command, dom.btnCopyFixLog);
+        showToast('Fix copiado', 'success');
+    }
+
+    function pyStringLiteral(value) {
+        return JSON.stringify(String(value ?? ''));
+    }
+
+    function get_reverse_script(log_name) {
+        const log = state.requestLogs.find(l => l.id === log_name);
+        if (!log || !log.reverse_doctype) return '';
+
+        const doctype = pyStringLiteral(log.reverse_doctype);
+        const docname = pyStringLiteral(log.reverse_docname);
+
+        if (log.is_new && log.reverse_docname) {
+            return [
+                'import frappe',
+                '',
+                `frappe.delete_doc(${doctype}, ${docname}, ignore_permissions=True)`,
+                'frappe.db.commit()',
+                `frappe.msgprint(frappe.bold("Reverse aplicado: documento creado eliminado"))`,
+            ].join('\n');
+        }
+
+        if (log.before_state && log.reverse_docname) {
+            const beforeState = pyStringLiteral(JSON.stringify(log.before_state));
+            return [
+                'import frappe',
+                '',
+                `before_state = frappe.parse_json(${beforeState})`,
+                `doc = frappe.get_doc(${doctype}, ${docname})`,
+                'skip_fields = {"doctype", "name", "owner", "creation", "modified", "modified_by", "idx"}',
+                'restore_values = {}',
+                'for fieldname, value in before_state.items():',
+                '    if fieldname not in skip_fields:',
+                '        restore_values[fieldname] = value',
+                'doc.update(restore_values)',
+                'doc.save(ignore_permissions=True)',
+                'frappe.db.commit()',
+                `frappe.msgprint(frappe.bold("Reverse aplicado: before_state restaurado"))`,
+            ].join('\n');
+        }
+
+        return '';
+    }
+
     function closeLogDetails() {
         state.selectedLogId = null;
         dom.logDetailsPanel.classList.add('hidden');
         dom.logDetailsPanel.classList.remove('flex');
+        dom.btnReverseLog?.classList.add('hidden');
+        dom.btnEditVsCodeLog?.classList.add('hidden');
+        dom.btnCopyFixLog?.classList.add('hidden');
         renderLogs();
     }
 
@@ -2783,7 +3326,19 @@
         if (!state.selectedLogId) return;
         const log = state.requestLogs.find(l => l.id === state.selectedLogId);
         if (!log) return;
-        copyToClipboard(log.response || log.error || 'No body', dom.btnCopyLog);
+        const diagnosis = log.permissionDiagnosis ? `\n\n----- PERMISSION DIAGNOSIS -----\n${JSON.stringify(log.permissionDiagnosis, null, 2)}` : '';
+        copyToClipboard((log.response || log.error || 'No body') + diagnosis, dom.btnCopyLog);
+    }
+
+    function copyReverseScript() {
+        if (!state.selectedLogId) return;
+        const script = get_reverse_script(state.selectedLogId);
+        if (!script) {
+            showToast('No hay script Reverse para este log', 'error');
+            return;
+        }
+        copyToClipboard(script, dom.btnReverseLog);
+        showToast('Reverse copiado', 'success');
     }
 
     // ── Comments Sub-Modal ──────────────────────────────────────
@@ -3631,7 +4186,7 @@
         modal.querySelector('#dashboard-action-logs')?.addEventListener('click', () => {
             closeDashboard();
             if (dom.logsPanel?.classList.contains('translate-x-full')) {
-                toggleLogsPanel();
+                openLogsPanel('all');
             } else {
                 renderLogs();
             }
@@ -4132,33 +4687,206 @@
         // Reset all
         dom.contentExplorer.classList.add('hidden');
         dom.contentExplorer.classList.remove('flex');
+        dom.contentCodeExplorer.classList.add('hidden');
+        dom.contentCodeExplorer.classList.remove('flex');
         dom.contentCollections.classList.add('hidden');
         dom.contentCollections.classList.remove('flex');
         dom.contentWebhooks.classList.add('hidden');
         dom.contentWebhooks.classList.remove('flex');
         
-        dom.tabExplorer.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors';
-        dom.tabCollections.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors';
-        dom.tabWebhooks.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-subtext border-b-2 border-transparent hover:text-editor-text transition-colors';
+        [dom.tabExplorer, dom.tabCodeExplorer, dom.tabCollections, dom.tabWebhooks].forEach(tabEl => {
+            tabEl?.classList.remove('sidebar-tab-active');
+        });
         
         stopWebhookPolling();
 
         if (tab === 'explorer') {
-            dom.tabExplorer.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors';
+            dom.tabExplorer.classList.add('sidebar-tab-active');
             dom.contentExplorer.classList.remove('hidden');
             dom.contentExplorer.classList.add('flex');
+        } else if (tab === 'code-explorer') {
+            dom.tabCodeExplorer.classList.add('sidebar-tab-active');
+            dom.contentCodeExplorer.classList.remove('hidden');
+            dom.contentCodeExplorer.classList.add('flex');
+            fetchCodeExplorerPaths();
         } else if (tab === 'collections') {
-            dom.tabCollections.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors';
+            dom.tabCollections.classList.add('sidebar-tab-active');
             dom.contentCollections.classList.remove('hidden');
             dom.contentCollections.classList.add('flex');
             renderCollectionsList();
         } else if (tab === 'webhooks') {
-            dom.tabWebhooks.className = 'flex-1 py-2.5 text-[11px] font-semibold text-editor-text border-b-2 border-editor-accent transition-colors';
+            dom.tabWebhooks.classList.add('sidebar-tab-active');
             dom.contentWebhooks.classList.remove('hidden');
             dom.contentWebhooks.classList.add('flex');
             fetchWebhooks();
             startWebhookPolling();
         }
+    }
+
+    async function fetchCodeExplorerPaths() {
+        if (!state.connected) {
+            showToast('Conéctate primero.', 'error');
+            return;
+        }
+
+        dom.codeDocTypeList.innerHTML = '<li class="px-4 py-3 text-xs text-editor-subtext">Cargando rutas...</li>';
+        dom.codeDocTypeEmpty.classList.add('hidden');
+        dom.codeDocTypeCount.textContent = 'Cargando...';
+
+        try {
+            const res = await apiFetch('/api/method/api_inspector.api.get_all_doctypes_paths');
+            const data = await res.json();
+            const message = data.message || data;
+            state.codeDoctypePaths = message.doctypes || message || [];
+            state.appRootPath = message.app_path || state.appRootPath || '';
+            state.codeExplorerBackendError = '';
+            renderCodeExplorerList();
+        } catch (err) {
+            const msg = err.response ? await parseFrappeError(err.response, err.message) : err.message;
+            state.codeExplorerBackendError = msg;
+            await fetchCodeExplorerFallback();
+        }
+    }
+
+    async function fetchCodeExplorerFallback() {
+        try {
+            let moduleAppMap = {};
+            try {
+                const moduleFields = encodeURIComponent(JSON.stringify(['name', 'app_name']));
+                const moduleRes = await apiFetch(`/api/resource/Module Def?fields=${moduleFields}&limit_page_length=0`);
+                const moduleData = await moduleRes.json();
+                moduleAppMap = Object.fromEntries((moduleData.data || []).map(m => [m.name, m.app_name]).filter(([, app]) => app));
+            } catch { /* Module Def app_name is optional across Frappe versions */ }
+
+            const fields = encodeURIComponent(JSON.stringify(['name', 'module']));
+            const res = await apiFetch(`/api/resource/DocType?fields=${fields}&limit_page_length=0&order_by=name asc`);
+            const data = await res.json();
+            state.codeDoctypePaths = (data.data || []).map(d => ({
+                name: d.name,
+                module: d.module || '',
+                app: moduleAppMap[d.module] || '',
+                path: buildLocalDocTypePath(d.name, d.module, moduleAppMap[d.module]),
+                missing_backend: !buildLocalDocTypePath(d.name, d.module, moduleAppMap[d.module]),
+            }));
+            state.appRootPath = buildLocalAppPath('api_inspector');
+            renderCodeExplorerList();
+        } catch (fallbackErr) {
+            const msg = fallbackErr.response ? await parseFrappeError(fallbackErr.response, fallbackErr.message) : fallbackErr.message;
+            dom.codeDocTypeList.innerHTML = `<li class="px-4 py-3 text-xs text-editor-red">Error: ${escapeHtml(msg)}</li>`;
+            dom.codeDocTypeCount.textContent = '0 paths';
+        }
+    }
+
+    function updateLocalBenchPath() {
+        state.localBenchPath = (dom.inputLocalBenchPath?.value || '').trim();
+        localStorage.setItem('fapi_local_bench_path', state.localBenchPath);
+        if (state.localBenchPath && !isValidLocalBenchPath(state.localBenchPath)) {
+            showToast('La ruta del bench debe ser local, no una URL.', 'error');
+        }
+        if (state.codeDoctypePaths.length) {
+            state.codeDoctypePaths = state.codeDoctypePaths.map(item => ({
+                ...item,
+                path: item.path && !item.missing_backend && !state.codeExplorerBackendError ? item.path : buildLocalDocTypePath(item.name, item.module, item.app),
+                missing_backend: !buildLocalDocTypePath(item.name, item.module, item.app),
+            }));
+            if (state.codeExplorerBackendError) {
+                state.appRootPath = buildLocalAppPath('api_inspector');
+            }
+            renderCodeExplorerList();
+        }
+    }
+
+    function scrubFrappeName(value) {
+        return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_').replace(/[^\w]/g, '');
+    }
+
+    function normalizeLocalPath(value) {
+        return String(value || '').trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    }
+
+    function isValidLocalBenchPath(value) {
+        const path = normalizeLocalPath(value);
+        return Boolean(path) && !/^https?:\/\//i.test(path);
+    }
+
+    function buildLocalAppPath(app) {
+        const bench = normalizeLocalPath(state.localBenchPath);
+        if (!isValidLocalBenchPath(bench) || !app) return '';
+        return `${bench}/apps/${app}`;
+    }
+
+    function buildLocalDocTypePath(doctype, module, app) {
+        const bench = normalizeLocalPath(state.localBenchPath);
+        if (!isValidLocalBenchPath(bench) || !doctype || !module || !app) return '';
+        const appSlug = scrubFrappeName(app);
+        const moduleSlug = scrubFrappeName(module);
+        const doctypeSlug = scrubFrappeName(doctype);
+        return `${bench}/apps/${appSlug}/${appSlug}/${moduleSlug}/doctype/${doctypeSlug}/${doctypeSlug}.py`;
+    }
+
+    function frappeRouteSlug(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
+    }
+
+    function getFrappeDocTypeUrl(doctype) {
+        return `${state.baseUrl}/app/doctype/${encodeURIComponent(doctype)}`;
+    }
+
+    function getFrappeListUrl(doctype) {
+        return `${state.baseUrl}/app/${encodeURIComponent(frappeRouteSlug(doctype))}`;
+    }
+
+    function filterCodeExplorer() {
+        state.codeExplorerQuery = (dom.inputSearchCodeDocType?.value || '').trim().toLowerCase();
+        renderCodeExplorerList();
+    }
+
+    function renderCodeExplorerList() {
+        const query = state.codeExplorerQuery;
+        const rows = state.codeDoctypePaths
+            .filter(item => !query || item.name.toLowerCase().includes(query) || (item.path || '').toLowerCase().includes(query) || (item.module || '').toLowerCase().includes(query))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        dom.codeDocTypeCount.textContent = `${rows.length} / ${state.codeDoctypePaths.length} paths`;
+        dom.codeDocTypeList.innerHTML = '';
+        dom.codeDocTypeEmpty.classList.toggle('hidden', rows.length > 0);
+        dom.codeDocTypeEmpty.classList.toggle('flex', rows.length === 0);
+
+        const frag = document.createDocumentFragment();
+        if (state.codeExplorerBackendError) {
+            const li = document.createElement('li');
+            li.className = 'px-4 py-3 text-[10px] text-editor-yellow border-b border-editor-border';
+            li.innerHTML = `Modo nube activo: se abriran DocTypes en Frappe Web con tus permisos actuales.<br><span class="text-editor-subtext">Para VS Code necesitas codigo local o Remote SSH.</span>`;
+            frag.appendChild(li);
+        }
+        rows.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'px-2';
+            const canOpenLocal = Boolean(item.path);
+            li.innerHTML = `
+                <button class="w-full text-left px-3 py-2 rounded-lg transition-colors border border-transparent hover:bg-editor-surface2 hover:border-editor-border">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="text-[11px] font-semibold text-editor-text truncate">${escapeHtml(item.name)}</div>
+                        <span class="text-[9px] text-editor-accent shrink-0">${canOpenLocal ? 'VS Code' : 'Frappe'}</span>
+                    </div>
+                    <div class="text-[9px] text-editor-subtext font-mono truncate">${escapeHtml(item.path || `Modulo: ${item.module || 'N/A'} · abrir en Frappe Web`)}</div>
+                </button>
+            `;
+            li.querySelector('button').addEventListener('click', () => {
+                const url = item.path ? `vscode://file/${encodeURI(item.path)}` : getFrappeListUrl(item.name);
+                window.open(url, '_blank');
+            });
+            frag.appendChild(li);
+        });
+        dom.codeDocTypeList.appendChild(frag);
+    }
+
+    function openAppRootInVsCode() {
+        if (!state.appRootPath) {
+            window.open(`${state.baseUrl}/app`, '_blank');
+            return;
+        }
+        window.open(`vscode://file/${encodeURI(state.appRootPath)}`, '_blank');
     }
 
     // ── Webhooks Logic ────────────────────────────────────────
