@@ -21,6 +21,16 @@ const MIME = {
     '.ico':  'image/x-icon',
 };
 
+const STATIC_CACHE = {
+    '.html': 'no-cache',
+    '.css': 'public, max-age=31536000, immutable',
+    '.js': 'public, max-age=31536000, immutable',
+    '.json': 'no-cache',
+    '.png': 'public, max-age=31536000, immutable',
+    '.svg': 'public, max-age=31536000, immutable',
+    '.ico': 'public, max-age=31536000, immutable',
+};
+
 const webhookLogs = [];
 const MAX_WEBHOOKS = 50;
 
@@ -83,7 +93,21 @@ const server = http.createServer((req, res) => {
 
     // ── Static File Server ────────────────────────────
     let filePath = req.url === '/' ? '/index.html' : req.url;
-    filePath = path.join(__dirname, filePath.split('?')[0]);
+    try {
+        filePath = path.normalize(decodeURIComponent(filePath.split('?')[0]));
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad Request');
+        return;
+    }
+    filePath = path.join(__dirname, filePath);
+
+    const relativePath = path.relative(__dirname, filePath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+    }
 
     const ext = path.extname(filePath);
     const contentType = MIME[ext] || 'application/octet-stream';
@@ -94,7 +118,10 @@ const server = http.createServer((req, res) => {
             res.end('Not Found');
             return;
         }
-        res.writeHead(200, { 'Content-Type': contentType });
+        res.writeHead(200, {
+            'Content-Type': contentType,
+            'Cache-Control': STATIC_CACHE[ext] || 'no-cache',
+        });
         res.end(data);
     });
 });

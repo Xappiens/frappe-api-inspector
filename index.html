@@ -6,8 +6,7 @@
     <title>Frappe DocType Inspector</title>
     <meta name="description" content="Herramienta interna para inspeccionar DocTypes de Frappe a través de su API REST.">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS CDN is loaded after its runtime config below. -->
     <style>
         :root, .light {
             --color-editor-bg: #f8f9fa;
@@ -55,7 +54,8 @@
         }
     </style>
     <script>
-        tailwindcss.config = {
+        window.tailwind = {
+            config: {
             darkMode: 'class',
             theme: {
                 extend: {
@@ -102,7 +102,8 @@
                     }
                 }
             }
-        }
+            }
+        };
     </script>
 
     <!-- Google Fonts -->
@@ -110,8 +111,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    <link href="style.css?v=23" rel="stylesheet">
+    <link href="style.css?v=28" rel="stylesheet">
 </head>
 <body class="bg-editor-bg text-editor-text font-sans antialiased h-screen overflow-hidden select-none">
 
@@ -580,21 +580,31 @@
     <!-- ═══════════════════ RECORDS MODAL ═══════════════════ -->
     <div id="records-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
         <div id="records-modal-backdrop" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm"></div>
-        <div id="records-modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[90vw] max-w-[1200px] h-[85vh] flex flex-col animate-scale-in">
+        <div id="records-modal-content" class="relative bg-editor-surface border border-editor-border rounded-xl shadow-2xl w-[96vw] max-w-none h-[92vh] flex flex-col animate-scale-in overflow-hidden">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
-                <div class="flex items-center gap-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-editor-border bg-editor-surface2 rounded-t-xl">
+                <div class="flex min-w-0 items-center gap-2.5">
                     <div class="w-6 h-6 rounded-md bg-editor-accent2 flex items-center justify-center">
                         <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                         </svg>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <h3 class="text-sm font-semibold text-editor-text">Registros (Datos reales)</h3>
-                        <p id="records-modal-subtitle" class="text-[10px] text-editor-subtext">Cargando...</p>
+                        <p id="records-modal-subtitle" class="text-[10px] text-editor-subtext truncate">Cargando...</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <label class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-editor-subtext">
+                        Ver
+                        <select id="select-records-limit" class="bg-editor-surface border border-editor-border rounded-lg px-2 py-1.5 text-[11px] normal-case tracking-normal text-editor-text focus:outline-none focus:border-editor-accent/50 focus:ring-1 focus:ring-editor-accent/20">
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="300">300</option>
+                            <option value="500" selected>500</option>
+                            <option value="1000">1000</option>
+                        </select>
+                    </label>
                     <button id="btn-export-csv" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
                         bg-editor-surface border border-editor-green text-editor-green
                         hover:bg-editor-green hover:text-white
@@ -609,7 +619,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                         <input id="input-records-quick-search" type="text" placeholder="Buscar por name, email o título..." 
-                            class="bg-editor-surface border border-editor-border rounded-lg pl-9 pr-3 py-1.5 text-[11px] w-64 focus:outline-none focus:border-editor-accent/50 focus:ring-1 focus:ring-editor-accent/20 transition-all">
+                            class="bg-editor-surface border border-editor-border rounded-lg pl-9 pr-3 py-1.5 text-[11px] w-72 max-w-[42vw] focus:outline-none focus:border-editor-accent/50 focus:ring-1 focus:ring-editor-accent/20 transition-all">
                     </div>
                     <button id="btn-toggle-filters" class="py-1.5 px-3 rounded-lg text-[11px] font-semibold transition-all duration-200
                         bg-editor-surface text-editor-subtext border border-editor-border
@@ -672,9 +682,9 @@
                 <p class="text-xs text-editor-subtext max-w-sm">No se ha encontrado ningún dato para este DocType en la base de datos.</p>
             </div>
             <!-- Modal Body: Table -->
-            <div id="records-table-container" class="hidden flex-1 overflow-auto custom-scrollbar relative">
-                <table class="w-full text-left whitespace-nowrap">
-                    <thead class="sticky top-0 z-20 bg-editor-surface2 shadow-md">
+            <div id="records-table-container" class="hidden flex-1 overflow-auto custom-scrollbar relative records-grid-shell">
+                <table class="records-table text-left whitespace-nowrap">
+                    <thead class="bg-editor-surface2 shadow-md">
                         <tr id="records-thead-tr" class="bg-editor-surface2 border-b border-editor-border text-[11px] uppercase tracking-wider text-editor-subtext">
                             <!-- Injected dynamically -->
                         </tr>
@@ -1186,6 +1196,6 @@
     </div>
 
     <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=34"></script>
 </body>
 </html>

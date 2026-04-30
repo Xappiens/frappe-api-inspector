@@ -68,6 +68,7 @@
         recordsTableContainer:$('#records-table-container'),
         recordsTheadTr:  $('#records-thead-tr'),
         recordsTbody:    $('#records-tbody'),
+        selectRecordsLimit: $('#select-records-limit'),
         btnExportCSV:    $('#btn-export-csv'),
 
         // Comments Sub-Modal
@@ -270,6 +271,7 @@
         originalRecord: null,
         queryFilters: [],
         currentRecords: [],
+        recordsPageLength: Number(localStorage.getItem('fapi_records_page_length') || 500),
         requestLogs: [],
         activeLogView: 'all',
         selectedLogId: null,
@@ -291,6 +293,7 @@
         currentPerms: [],
         selectedUploadFile: null,
         fieldsRenderToken: 0,
+        logsRenderScheduled: false,
         permsRequestToken: 0,
         consoleModalEl: null,
         dashboardModalEl: null,
@@ -422,6 +425,7 @@
         // Inspector Tabs
         safeBind(dom.tabInspectorFields, 'click', () => switchInspectorTab('fields'));
         safeBind(dom.tabInspectorPerms, 'click', () => switchInspectorTab('perms'));
+        safeBind(dom.fieldsTbody, 'click', handleFieldsTableClick);
         safeBind(dom.btnRefreshPerms, 'click', () => {
             if (state.currentDocType) fetchDocPerms(state.currentDocType);
         });
@@ -501,6 +505,17 @@
         safeBind(dom.recordsBackdrop, 'click', closeRecordsModal);
         safeBind(dom.btnRefreshRecords, 'click', fetchRecords);
         safeBind(dom.btnExportCSV, 'click', exportToCSV);
+        safeBind(dom.recordsTbody, 'click', handleRecordsTableClick);
+        safeBind(dom.recordsTbody, 'change', handleRecordsSelectionChange);
+        safeBind(dom.recordsTheadTr, 'change', handleRecordsSelectionChange);
+        if (dom.selectRecordsLimit) {
+            dom.selectRecordsLimit.value = String(state.recordsPageLength);
+            safeBind(dom.selectRecordsLimit, 'change', () => {
+                state.recordsPageLength = Number(dom.selectRecordsLimit.value) || 500;
+                localStorage.setItem('fapi_records_page_length', String(state.recordsPageLength));
+                fetchRecords();
+            });
+        }
 
         safeBind(dom.btnCloseComm, 'click', closeCommentsModal);
         safeBind(dom.commentsBackdrop, 'click', closeCommentsModal);
@@ -738,7 +753,7 @@
 
         state.requestLogs.unshift(logEntry);
         if (state.requestLogs.length > 100) state.requestLogs.pop();
-        renderLogs();
+        scheduleRenderLogs();
 
         try {
             if (method === 'PUT' && reverseTarget?.doctype && reverseTarget?.name) {
@@ -792,7 +807,7 @@
                 throw error;
             }
 
-            renderLogs();
+            scheduleRenderLogs();
             return res;
         } catch (err) {
             clearTimeout(timeoutId);
@@ -805,7 +820,7 @@
                 logEntry.error = err.message;
             }
 
-            renderLogs();
+            scheduleRenderLogs();
             if (err instanceof Error && !err.response) {
                 err.isAppError = true;
             }
@@ -888,7 +903,7 @@
         };
         state.requestLogs.unshift(logEntry);
         if (state.requestLogs.length > 100) state.requestLogs.pop();
-        renderLogs();
+        scheduleRenderLogs();
     }
 
     async function getBeforeState(doctype, name) {
@@ -1477,12 +1492,6 @@
                         <td class="options-cell" title="${escapeHtml(field.options || '')}">${formatOptions(field)}</td>
                     `;
 
-                    const fnCell = tr.querySelector('.fieldname-cell');
-                    fnCell?.addEventListener('click', () => {
-                        copyToClipboard(field.fieldname);
-                        fnCell.classList.add('copied');
-                        setTimeout(() => fnCell.classList.remove('copied'), 1200);
-                    });
                 }
 
                 fragment.appendChild(tr);
@@ -1493,6 +1502,18 @@
         };
 
         requestAnimationFrame(appendChunk);
+    }
+
+    function handleFieldsTableClick(e) {
+        const fnCell = e.target.closest('.fieldname-cell');
+        if (!fnCell || !dom.fieldsTbody.contains(fnCell)) return;
+
+        const fieldname = fnCell.dataset.fieldname;
+        if (!fieldname) return;
+
+        copyToClipboard(fieldname);
+        fnCell.classList.add('copied');
+        setTimeout(() => fnCell.classList.remove('copied'), 1200);
     }
 
     // ── Schema Snapshots ──────────────────────────────────────
@@ -1818,7 +1839,7 @@
 
         } catch (err) {
             console.error(err);
-            dom.mermaidGraph.innerHTML = `<div class="p-12 text-center text-editor-red">Fallo del motor relacional avanzado: ${err.message}.</div>`;
+            dom.relationshipLists.innerHTML = `<div class="p-12 text-center text-editor-red">Fallo del motor relacional avanzado: ${escapeHtml(err.message)}.</div>`;
         }
     }
 
@@ -2543,7 +2564,8 @@
                 filtersParam = `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
             }
 
-            const url = `/api/resource/${encodeURIComponent(state.currentDocType)}?fields=["*"]&limit_page_length=50&order_by=creation desc${filtersParam}`;
+            const pageLength = state.recordsPageLength || 500;
+            const url = `/api/resource/${encodeURIComponent(state.currentDocType)}?fields=["*"]&limit_page_length=${pageLength}&order_by=creation desc${filtersParam}`;
             const res = await apiFetch(url);
 
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2561,7 +2583,8 @@
                 dom.recordsEmpty.classList.remove('hidden');
                 dom.recordsEmpty.classList.add('flex');
             } else {
-                dom.recordsSubtitle.textContent = `Mostrando ${records.length} registro(s) · ${state.currentDocType}`;
+                const limitText = records.length >= pageLength ? ` · límite ${pageLength}` : '';
+                dom.recordsSubtitle.textContent = `Mostrando ${records.length} registro(s)${limitText} · ${state.currentDocType}`;
                 renderRecordsTable(records);
                 dom.recordsTableContainer.classList.remove('hidden');
             }
@@ -2582,9 +2605,33 @@
 
         if (!records.length) return;
 
-        const firstRecord = records[0];
-        const priorityKeys = ['name', 'creation', 'first_name', 'email', 'status', 'custom_tipo_de_lead'];
-        let rawKeys = Object.keys(firstRecord).filter(k => !k.startsWith('_'));
+        const priorityKeys = [
+            'name',
+            'title',
+            'subject',
+            'first_name',
+            'full_name',
+            'customer_name',
+            'student_name',
+            'nombre',
+            'apellidos',
+            'email',
+            'email_id',
+            'phone',
+            'mobile_no',
+            'status',
+            'creation',
+            'modified',
+            'custom_tipo_de_lead'
+        ];
+        const rawKeys = Array.from(
+            records.reduce((keys, record) => {
+                Object.keys(record).forEach(key => {
+                    if (!key.startsWith('_')) keys.add(key);
+                });
+                return keys;
+            }, new Set())
+        );
 
         const keys = rawKeys.sort((a, b) => {
             const idxA = priorityKeys.indexOf(a);
@@ -2598,18 +2645,19 @@
         const fragHead = document.createDocumentFragment();
         
         const thCb = document.createElement('th');
-        thCb.className = 'py-3 px-4 w-10 text-center sticky top-0 bg-editor-surface2 z-30 shadow-sm';
+        thCb.className = 'records-th records-col-select';
         thCb.innerHTML = `<input type="checkbox" id="cb-select-all" class="rounded border-editor-border bg-editor-surface focus:ring-0 cursor-pointer">`;
         fragHead.appendChild(thCb);
 
         keys.forEach(key => {
             const th = document.createElement('th');
-            th.className = 'py-3 px-4 font-semibold text-editor-subtext whitespace-nowrap cursor-default sticky top-0 bg-editor-surface2 z-30 shadow-sm';
+            th.className = `records-th ${getRecordColumnClass(key)}`;
             th.textContent = key;
+            th.title = key;
             fragHead.appendChild(th);
         });
         const thActions = document.createElement('th');
-        thActions.className = 'py-3 px-4 font-semibold text-editor-subtext whitespace-nowrap text-right sticky top-0 bg-editor-surface2 z-30 shadow-sm';
+        thActions.className = 'records-th records-col-actions';
         thActions.textContent = 'ACCIONES';
         fragHead.appendChild(thActions);
 
@@ -2618,59 +2666,49 @@
         const fragBody = document.createDocumentFragment();
         records.forEach((record, index) => {
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-editor-surface2 transition-colors animate-fade-in group';
-            tr.style.animationDelay = `${Math.min(index * 15, 300)}ms`;
+            tr.className = 'records-row group';
 
             tr.title = "Haz clic en una celda para copiar su valor";
 
             const tdCb = document.createElement('td');
-            tdCb.className = 'py-2.5 px-4 w-10 text-center cursor-default';
+            tdCb.className = 'records-td records-col-select cursor-default';
             tdCb.innerHTML = `<input type="checkbox" class="cb-record rounded border-editor-border bg-editor-surface focus:ring-0 cursor-pointer" value="${record.name}">`;
-            tdCb.addEventListener('click', (e) => e.stopPropagation());
             tr.appendChild(tdCb);
 
             keys.forEach(key => {
                 const td = document.createElement('td');
-                td.className = 'py-2.5 px-4 whitespace-nowrap max-w-[200px] truncate cursor-pointer hover:text-editor-accent transition-colors';
+                const formatted = formatRecordCellValue(record[key]);
+                td.className = `records-td records-copy-cell ${getRecordColumnClass(key)} records-value-${formatted.kind} ${formatted.empty ? 'records-value-empty' : ''}`;
+                if (!formatted.empty) {
+                    td.dataset.copyValue = formatted.raw;
+                    td.dataset.copyLabel = formatted.display.substring(0, 80);
+                }
                 
-                let val = record[key];
-                if (val === null || val === undefined) val = '—';
-                else if (typeof val === 'object') val = JSON.stringify(val);
-
-                td.textContent = String(val);
-
-                td.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (val !== '—') {
-                        await copyToClipboard(String(record[key]));
-                        showToast(`Copiado: ${val}`, 'success');
-                    }
-                });
+                td.innerHTML = `<span class="records-cell-value" title="${escapeHtml(formatted.raw)}">${escapeHtml(formatted.display)}</span>`;
 
                 tr.appendChild(td);
             });
 
             const tdAct = document.createElement('td');
-            tdAct.className = 'py-2.5 px-4 whitespace-nowrap text-right transition-colors flex flex-row items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100';
+            tdAct.className = 'records-td records-col-actions';
+            const actionsWrap = document.createElement('div');
+            actionsWrap.className = 'records-actions';
             
             const btnEdit = document.createElement('button');
-            btnEdit.className = 'py-1 px-2.5 bg-editor-surface border border-editor-border rounded shadow-sm text-[10px] hover:bg-editor-yellow hover:text-white transition-colors text-editor-text font-medium';
-            btnEdit.innerHTML = `✏️ Editar`;
-            btnEdit.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openEditModal(record);
-            });
+            btnEdit.className = 'records-action-btn records-action-edit';
+            btnEdit.textContent = 'Editar';
+            btnEdit.dataset.recordAction = 'edit';
+            btnEdit.dataset.recordName = record.name;
             
             const btnComm = document.createElement('button');
-            btnComm.className = 'py-1 px-2.5 bg-editor-surface border border-editor-border rounded shadow-sm text-[10px] hover:bg-editor-accent hover:text-white transition-colors text-editor-text font-medium';
-            btnComm.innerHTML = `💬 Mensajes`;
-            btnComm.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openCommentsModal(record.name);
-            });
+            btnComm.className = 'records-action-btn records-action-comments';
+            btnComm.textContent = 'Mensajes';
+            btnComm.dataset.recordAction = 'comments';
+            btnComm.dataset.recordName = record.name;
 
-            tdAct.appendChild(btnEdit);
-            tdAct.appendChild(btnComm);
+            actionsWrap.appendChild(btnEdit);
+            actionsWrap.appendChild(btnComm);
+            tdAct.appendChild(actionsWrap);
             tr.appendChild(tdAct);
 
             fragBody.appendChild(tr);
@@ -2678,38 +2716,98 @@
 
         dom.recordsTbody.appendChild(fragBody);
         dom.recordsTableContainer.classList.remove('hidden');
+    }
 
-        const cbSelectAll = $('#cb-select-all');
-        const cbRecords = document.querySelectorAll('.cb-record');
+    async function handleRecordsTableClick(e) {
+        const actionBtn = e.target.closest('[data-record-action]');
+        if (actionBtn && dom.recordsTbody.contains(actionBtn)) {
+            const record = state.currentRecords.find(r => r.name === actionBtn.dataset.recordName);
+            if (!record) return;
 
-        cbSelectAll.addEventListener('change', (e) => {
+            if (actionBtn.dataset.recordAction === 'edit') {
+                openEditModal(record);
+            } else if (actionBtn.dataset.recordAction === 'comments') {
+                openCommentsModal(record.name);
+            }
+            return;
+        }
+
+        const copyCell = e.target.closest('[data-copy-value]');
+        if (!copyCell || !dom.recordsTbody.contains(copyCell)) return;
+
+        await copyToClipboard(copyCell.dataset.copyValue);
+        showToast(`Copiado: ${copyCell.dataset.copyLabel}`, 'success');
+    }
+
+    function handleRecordsSelectionChange(e) {
+        if (e.target.id === 'cb-select-all') {
             const checked = e.target.checked;
-            cbRecords.forEach(cb => {
+            dom.recordsTbody.querySelectorAll('.cb-record').forEach(cb => {
                 cb.checked = checked;
                 if (checked) state.selectedRecords.add(cb.value);
                 else state.selectedRecords.delete(cb.value);
             });
             updateBulkBar();
-        });
+            return;
+        }
 
-        cbRecords.forEach(cb => {
-            cb.addEventListener('change', (e) => {
-                if (e.target.checked) state.selectedRecords.add(e.target.value);
-                else state.selectedRecords.delete(e.target.value);
-                
-                if (state.selectedRecords.size === 0) {
-                    cbSelectAll.checked = false;
-                    cbSelectAll.indeterminate = false;
-                } else if (state.selectedRecords.size === cbRecords.length) {
-                    cbSelectAll.checked = true;
-                    cbSelectAll.indeterminate = false;
-                } else {
-                    cbSelectAll.checked = false;
-                    cbSelectAll.indeterminate = true;
-                }
-                updateBulkBar();
-            });
-        });
+        if (!e.target.classList.contains('cb-record')) return;
+
+        if (e.target.checked) state.selectedRecords.add(e.target.value);
+        else state.selectedRecords.delete(e.target.value);
+
+        updateRecordsSelectAllState();
+        updateBulkBar();
+    }
+
+    function updateRecordsSelectAllState() {
+        const cbSelectAll = $('#cb-select-all');
+        if (!cbSelectAll) return;
+
+        const cbRecords = dom.recordsTbody.querySelectorAll('.cb-record');
+        if (state.selectedRecords.size === 0) {
+            cbSelectAll.checked = false;
+            cbSelectAll.indeterminate = false;
+        } else if (state.selectedRecords.size === cbRecords.length) {
+            cbSelectAll.checked = true;
+            cbSelectAll.indeterminate = false;
+        } else {
+            cbSelectAll.checked = false;
+            cbSelectAll.indeterminate = true;
+        }
+    }
+
+
+    function getRecordColumnClass(key) {
+        if (key === 'name') return 'records-col-name';
+        if (key === 'creation' || key === 'modified' || key.endsWith('_date') || key.includes('date')) return 'records-col-date';
+        if (key === 'status' || key.endsWith('_status')) return 'records-col-status';
+        if (key.includes('email')) return 'records-col-email';
+        return '';
+    }
+
+    function formatRecordCellValue(value) {
+        if (value === null || value === undefined || value === '') {
+            return { display: '—', raw: '', kind: 'empty', empty: true };
+        }
+
+        let raw = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        let display = raw;
+        let kind = 'text';
+
+        if (typeof value === 'number') {
+            kind = 'number';
+        } else if (typeof value === 'boolean' || value === 0 || value === 1) {
+            kind = 'boolean';
+            display = value === true || value === 1 ? 'Sí' : 'No';
+        } else if (typeof value === 'object') {
+            kind = 'json';
+        } else if (/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2})?/.test(raw)) {
+            kind = 'date';
+            display = raw.replace('T', ' ').slice(0, 16);
+        }
+
+        return { display, raw, kind, empty: false };
     }
 
     // ── Bulk Actions Logic ────────────────────────────────────
@@ -3004,6 +3102,7 @@
     }
 
     function renderLogs() {
+        state.logsRenderScheduled = false;
         dom.logsList.innerHTML = '';
         const visibleLogs = getVisibleLogs();
         if (visibleLogs.length === 0) {
@@ -3042,6 +3141,14 @@
             frag.appendChild(div);
         });
         dom.logsList.appendChild(frag);
+    }
+
+    function scheduleRenderLogs() {
+        if (!dom.logsPanel || dom.logsPanel.classList.contains('translate-x-full')) return;
+        if (state.logsRenderScheduled) return;
+
+        state.logsRenderScheduled = true;
+        requestAnimationFrame(renderLogs);
     }
 
     function openLogDetails(log) {
